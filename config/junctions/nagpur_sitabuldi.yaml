@@ -1,0 +1,51 @@
+# Junction Configuration: Sitabuldi Interchange (Nagpur)
+junction_id: "NGP_J01_SITABULDI"
+name: "Sitabuldi Interchange"
+corridor_id: "CORR_WARDHA_RD"
+coordinates:
+  latitude: 21.1458
+  longitude: 79.0882
+
+approaches:
+  - id: "APP_NORTH"
+    name: "Wardha Road (from RBI Square)"
+    direction: "Northbound"
+    camera_source: "rtsp://192.168.1.101:554/stream1"
+    lanes: 3
+    saturation_flow_pcu_hr: 1800
+    downstream_junction_id: "NGP_J02_VARIETIES"
+  - id: "APP_SOUTH"
+    name: "Wardha Road (towards Rahate Colony)"
+    direction: "Southbound"
+    camera_source: "rtsp://192.168.1.102:554/stream1"
+    lanes: 3
+    saturation_flow_pcu_hr: 1800
+    downstream_junction_id: "NGP_J03_RAHATE"
+  - id: "APP_EAST"
+    name: "Central Avenue (from Railway Station)"
+    direction: "Eastbound"
+    camera_source: "rtsp://192.168.1.103:554/stream1"
+    lanes: 2
+    saturation_flow_pcu_hr: 1400
+    downstream_junction_id: null
+  - id: "APP_WEST"
+    name: "Maharajbagh Road"
+    direction: "Westbound"
+    camera_source: "rtsp://192.168.1.104:554/stream1"
+    lanes: 2
+    saturation_flow_pcu_hr: 1400
+    downstream_junction_id: null
+
+phases:
+  - phase_id: 1
+    name: "Wardha Road North-South Through"
+    active_approaches: ["APP_NORTH", "APP_SOUTH"]
+    conflicting_phases: [2, 3]
+  - phase_id: 2
+    name: "Central Avenue - Maharajbagh East-West"
+    active_approaches: ["APP_EAST", "APP_WEST"]
+    conflicting_phases: [1, 3]
+  - phase_id: 3
+    name: "Sitabuldi Right Turn Phasing"
+    active_approaches: ["APP_NORTH", "APP_EAST"]
+    conflicting_phases: [1, 2]

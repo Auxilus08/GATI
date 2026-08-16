@@ -28,3 +28,21 @@ Log of every non-trivial engineering/product decision made on GATI.
   - *Complex Transformer/LSTM Congestion Predictors:* Require massive historical dataset collection before achieving convergence.
 - **Impact:** Provides immediate, explainable, transparent signal phase optimization and risk scoring that governance bodies can audit and override instantly.
 - **Reversibility:** High. Modern modular controller design allows swapping or blending the actuation policy (e.g. Max-Pressure + safety guardrails + optional RL policy shadow mode).
+
+## [2026-08-16] Decoupled Repository Layout & Modular Parallelization
+- **Decision:** Structure the repository into 4 autonomous packages (`config/`, `edge/`, `central/`, `frontend/`, `simulation/`) with strict schema boundaries and zero hardcoded junction constants in application code.
+- **Context:** Needed a structure that allows a 3–4 person team to build edge vision, signal control, central analytics, and operator UI concurrently without git merge bottlenecks, while being clean enough for direct municipal IT handoff.
+- **Alternatives considered:**
+  - *Monolithic Flat Script:* Combining controller, API, and vision into 1 or 2 large files. Rejected as unmaintainable and unsuited for parallel development.
+  - *Micro-repo / Multi-repo Setup:* Splitting into separate git repositories. Rejected as too much overhead for a hackathon prototype.
+- **Impact:** Unblocks independent testing and development across edge and central layers; configuration is fully externalized into `config/default_config.yaml` and `config/junctions/*.yaml`.
+- **Reversibility:** High. Packages are already modularly separated.
+
+## [2026-08-16] Technology Framework Selection: FastAPI + React + Vanilla CSS
+- **Decision:** Adopt FastAPI for the Central Ingestion API and React (Vite) with structured Vanilla CSS for the ICCC Operator Dashboard.
+- **Context:** High-frequency JSON telemetry ingestion (~20-50 req/sec) and WebSocket streaming requires an asynchronous Python server with native Pydantic validation. The dashboard requires fast responsive rendering without bulky styling dependencies.
+- **Alternatives considered:**
+  - *Flask / Django:* Slower async WebSocket handling and heavier overhead.
+  - *Streamlit / Gradio:* Quick to prototype, but lacks custom layout flexibility, corridor visualization, and high-frequency WebSocket state synchronization required for municipal ICCC consoles.
+- **Impact:** FastAPI natively produces interactive OpenAPI docs; React provides component reusability for ~100-junction scalability and live visual updates.
+- **Reversibility:** Moderate. API contracts are standard REST & WebSocket JSON.

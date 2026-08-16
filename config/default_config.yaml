@@ -1,0 +1,40 @@
+# ==============================================================================
+# GATI Global Default Configuration
+# Scale Scope: Tier-1 / Tier-2 Indian City (Nagpur: ~50-150 signalized junctions)
+# ==============================================================================
+
+system:
+  city_name: "Nagpur"
+  target_junction_count: 100
+  telemetry_interval_sec: 3.0
+  environment: "development"
+
+# Indian Road Congress (IRC) Standard Passenger Car Unit (PCU) Weighting
+pcu_weights:
+  two_wheeler: 0.5    # Motorcycle, Scooter, Moped
+  auto_rickshaw: 0.8  # 3-Wheeler Auto-rickshaw
+  car: 1.0            # Hatchback, Sedan, SUV, Taxi
+  bus: 3.0            # City Bus, Private Bus
+  truck: 3.0          # Medium/Heavy Commercial Vehicle (HCV)
+  light_commercial: 1.5 # Tempo, LCV, Delivery van
+  bicycle: 0.2        # Non-motorized transport
+
+# Safety & Signal Timing Guardrails (IRC SP:41 / MoRTH Standards)
+signal_guardrails:
+  min_green_seconds: 15.0       # Minimum green to avoid pedestrian trap & driver confusion
+  max_green_seconds: 60.0       # Maximum green to prevent cross-street starvation
+  amber_seconds: 4.0            # Standard clearance amber
+  all_red_seconds: 2.0          # Red clearance time for junction clearing
+  pedestrian_clearance_sec: 12.0 # Minimum pedestrian crossing window
+
+# Algorithm Configuration
+max_pressure:
+  pressure_smoothing_alpha: 0.3 # Exponential moving average for queue stability
+  min_phase_hold_sec: 15.0      # Minimum time before switching to another phase
+  priority_override_multiplier: 5.0 # Weight multiplier when emergency vehicle is present
+
+# Central Analytics Thresholds
+analytics:
+  congestion_threshold_pcu: 45.0 # PCU queue length considered severe bottleneck
+  anomaly_zscore_threshold: 2.5  # Standard deviations for traffic surge alert
+  forecasting_horizon_minutes: 15 # Rolling forecast window

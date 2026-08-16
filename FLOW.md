@@ -40,7 +40,7 @@ GATI (Governance-ready AI Traffic Intelligence) is an edge-first, retrofit-ready
 |           |                                                            |
 |           +---> [Corridor Coordinator (Green Wave Sync)]               |
 |           +---> [Congestion & Incident Forecasting (Holt-Winters)]     |
-|           +---> [Time-Series & Incident Store (SQLite/PostgreSQL)]     |
+|           +---> [Time-Series & Incident Store (In-Memory / SQLite)]     |
 +===========================================|============================+
                                             |
 +===========================================v============================+
@@ -55,45 +55,123 @@ GATI (Governance-ready AI Traffic Intelligence) is an edge-first, retrofit-ready
 ```
 
 ### Major Components and Their Responsibility
-- **Edge Vision Worker:** Ingests local RTSP camera streams, performs quantized object detection, multi-lane tracking, and emergency vehicle spotting at ~10-15 FPS.
-- **Queue & PCU Engine:** Converts vehicle bounding boxes and lane occupancy into Indian Traffic Standard PCU counts (Two-Wheeler: 0.5, Auto: 0.8, Car: 1.0, Bus/Truck: 3.0).
-- **Edge Adaptive Signal Controller:** Executes fail-safe Max-Pressure green time allocation with guardrails (min green 15s, max green 60s, amber 4s, all-red 2s).
-- **Central Telemetry Ingestor & Store:** Receives lightweight JSON telemetry from 50-150 junctions, indexes metrics, and logs municipal audit trails.
-- **Corridor Coordinator:** Computes dynamic progression offsets along high-density arterial roads (e.g., Wardha Road in Nagpur) for emergency green-waves.
-- **ICCC Operator Dashboard:** Responsive governance UI providing real-time city-wide junction states, manual phase overrides, and predictive bottleneck risk alerts.
+- **Edge Vision Worker (`edge/vision/`):** Ingests local RTSP camera streams, performs quantized object detection, multi-lane tracking, and emergency vehicle spotting at ~10-15 FPS.
+- **Queue & PCU Engine (`edge/vision/pcu_engine.py`):** Converts vehicle bounding boxes and lane occupancy into Indian Traffic Standard PCU counts (Two-Wheeler: 0.5, Auto: 0.8, Car: 1.0, Bus/Truck: 3.0).
+- **Edge Adaptive Signal Controller (`edge/controller/`):** Executes fail-safe Max-Pressure green time allocation with guardrails (min green 15s, max green 60s, amber 4s, all-red 2s).
+- **Edge Telemetry Client (`edge/telemetry/`):** Sends compact JSON telemetry (< 5 KB/s) to the central server with offline fallback buffering.
+- **Central Telemetry Ingestor & API (`central/api/`):** FastAPI async server ingesting ~20-50 req/sec from 100 junctions, maintaining live state and WebSocket broadcasting.
+- **Analytics & Forecaster (`central/analytics/`):** Holt's double exponential queue smoothing, Z-score anomaly surge detection, and 0-100 Junction Risk Index.
+- **Corridor Coordinator (`central/coordinator/`):** Computes dynamic green-wave offsets along high-density arterial corridors (e.g., Wardha Road in Nagpur).
+- **ICCC Operator Dashboard (`frontend/`):** React dashboard for real-time junction monitoring, risk alerts, green wave planning, and manual police phase overrides.
+- **Nagpur Simulation Harness (`simulation/`):** Multi-junction traffic and telemetry load generator.
 
 ### Data Flow
 `Camera (RTSP) -> Edge Vision Worker -> PCU Queue Estimator -> Local Signal Actuation Controller -> Edge Telemetry Client -> (WAN / 4G JSON) -> Central Ingestor -> Analytics & Coordinator -> Operator Dashboard`
-
-### What Runs at the Edge vs. Centrally
-- **Edge (Per Junction):** RTSP decoding, object detection, vehicle tracking, PCU queue computation, emergency vehicle detection, and autonomous fail-safe signal phase switching. Runs locally to guarantee sub-second actuation latency and prevent traffic stoppage during network loss.
-- **Centrally (ICCC Server):** Multi-junction coordination, arterial green-wave synchronization, historical congestion analytics, city-wide predictive heatmaps, manual police overrides, and governance reporting.
 
 ### Scale Assumptions (Nagpur-Like Scale)
 - **Signalized Junction Count:** 50 – 150 junctions (baseline: 100 junctions).
 - **Approaches/Cameras per Junction:** 3 to 4 approaches (avg 4 cameras per junction = ~400 total city cameras).
 - **Telemetry Frequency:** 1 telemetry packet per junction every 3 to 5 seconds.
-- **Expected Requests/sec at Central Server:** ~20 to 50 req/sec (easily handled by a single standard FastAPI instance).
+- **Expected Requests/sec at Central Server:** ~20 to 50 req/sec.
 - **Central Bandwidth Consumption:** ~5 KB/s per junction -> ~500 KB/s total city-wide telemetry bandwidth.
 - **Daily Telemetry Volume:** ~15-25 MB/junction/day -> ~2.5 GB/day total for 100 junctions.
 
 ## 3. Low-Level Design (LLD)
-*(This section will be populated with exact interfaces, schemas, and signatures as each component is implemented in code.)*
+
+### Actual Folder / Module Layout
+```text
+.
+├── config/
+│   ├── default_config.yaml           # Global PCU weights, guardrails, thresholds
+│   ├── settings.py                   # Pydantic BaseSettings & YAML loader
+│   └── junctions/
+│       ├── nagpur_sitabuldi.yaml     # Sitabuldi junction geometry & phases
+│       └── nagpur_varieties_sq.yaml  # Varieties Square geometry & phases
+├── edge/
+│   ├── vision/
+│   │   ├── __init__.py               # TrackedVehicle & ApproachQueueMetrics dataclasses
+│   │   └── pcu_engine.py             # Indian PCU calculation engine
+│   ├── controller/
+│   │   ├── __init__.py
+│   │   ├── signal_state.py           # Red/Amber/Green safety state machine
+│   │   └── max_pressure.py           # Max-Pressure pressure optimizer
+│   └── telemetry/
+│       ├── __init__.py
+│       └── edge_client.py            # Telemetry client with offline caching
+├── central/
+│   ├── api/
+│   │   ├── main.py                   # FastAPI app & CORS middleware
+│   │   ├── websocket_manager.py      # Live WebSocket operator connection pool
+│   │   ├── schemas/
+│   │   │   └── telemetry_schema.py   # Pydantic telemetry & override models
+│   │   └── routers/
+│   │       ├── telemetry.py          # /api/v1/telemetry/report, batch, ws
+│   │       ├── junctions.py          # /api/v1/junctions/, override endpoints
+│   │       ├── corridor.py           # /api/v1/corridors/ green wave endpoints
+│   │       └── analytics.py          # /api/v1/analytics/ city summary & forecast
+│   ├── analytics/
+│   │   ├── forecaster.py             # Holt's linear queue forecaster
+│   │   ├── anomaly_detector.py       # Z-score statistical surge detector
+│   │   └── risk_index.py             # 0-100 Junction Risk Index evaluator
+│   └── coordinator/
+│       └── green_wave.py             # Arterial offset coordinator
+├── simulation/
+│   ├── __init__.py
+│   └── city_simulator.py             # Multi-junction traffic & telemetry simulator
+└── frontend/
+    ├── package.json
+    ├── vite.config.js
+    ├── index.html
+    └── src/
+        ├── App.jsx
+        ├── main.jsx
+        ├── index.css
+        ├── components/               # Navbar, MetricsBar, JunctionCard, CorridorView, EmergencyModal
+        └── services/api.js           # REST client layer
+```
+
+### Key API Schemas & Data Shapes
+- **Telemetry Ingestion Payload:**
+```json
+{
+  "junction_id": "NGP_J01_SITABULDI",
+  "timestamp": 1723800000.0,
+  "active_phase_id": 1,
+  "signal_state": "GREEN",
+  "pressures": {"1": 18.4, "2": 7.2, "3": 4.1},
+  "approaches": {
+    "APP_NORTH": {
+      "total_pcu": 14.5,
+      "vehicle_counts": {"two_wheeler": 12, "auto_rickshaw": 4, "car": 5, "bus": 1},
+      "queue_length_m": 87.0,
+      "avg_speed_kmh": 24.5,
+      "emergency": false
+    }
+  },
+  "emergency_active": false
+}
+```
 
 ## 4. Cost & Scale Notes
 - **Edge Hardware per Junction:** ₹45,000 – ₹70,000 one-time cost (Industrial edge AI box or Jetson Orin Nano / RK3588 with NPU) retrofitted inside existing traffic controller cabinet.
 - **Bandwidth per Junction:** Standard 4G SIM (₹300/month per junction) uploading ~750 MB/month total metadata.
-- **Central Server Infrastructure:** Single mid-tier VM / local server (8 vCPUs, 16GB RAM, ~200GB SSD) costing ~₹6,000 – ₹10,000/month or zero incremental cloud cost if deployed on existing Smart City ICCC on-premise hardware.
+- **Central Server Infrastructure:** Single mid-tier VM / local server (8 vCPUs, 16GB RAM, ~200GB SSD) costing ~₹6,000 – ₹10,000/month or zero incremental cloud cost on Smart City ICCC on-premise hardware.
 - **Total Estimated City Rollout (100 Junctions):**
   - Capex: ~₹50L – ₹70L total for 100 junction edge units + installation.
   - Opex: ~₹40,000 – ₹50,000/month total across all 100 junctions for 4G connectivity and server maintenance.
-  - *Contrast with Cloud Video Streaming:* Central video streaming of 400 RTSP feeds would cost >₹35L/month in bandwidth and cloud GPU transcode/inference.
 
 ## 5. Status / What's Built vs. Planned
 - [x] Baseline architecture documents (`DECISIONS.md`, `FLOW.md`).
-- [ ] Edge Simulation & Video Processing Pipeline (Quantized vehicle detection, Indian traffic PCU engine, Ambulance priority detection).
-- [ ] Adaptive Signal Control Core (Max-Pressure algorithm with safety guardrails).
-- [ ] Central Ingestion & Multi-Junction Telemetry API (FastAPI backend, WebSocket live streams).
-- [ ] Corridor Synchronization & Arterial Green Wave Coordinator.
-- [ ] ICCC Operator Dashboard & Governance Console.
-- [ ] Nagpur 100-Junction City Traffic Simulator & Load Test Harness.
+- [x] Modular repository layout with clean separation of concerns.
+- [x] Zero-hardcoding configuration system (`config/default_config.yaml`, `config/junctions/*.yaml`, `config/settings.py`).
+- [x] Indian Traffic PCU calculation engine (`edge/vision/pcu_engine.py`).
+- [x] Signal phase safety state machine (`edge/controller/signal_state.py`).
+- [x] Max-Pressure adaptive controller (`edge/controller/max_pressure.py`).
+- [x] Edge telemetry client with offline buffer (`edge/telemetry/edge_client.py`).
+- [x] Central FastAPI backend with REST & WebSockets (`central/api/`).
+- [x] Holt's Linear Queue Forecaster & Z-Score Anomaly Detector (`central/analytics/`).
+- [x] Junction Risk Index Engine (`central/analytics/risk_index.py`).
+- [x] Corridor Green Wave Progression Coordinator (`central/coordinator/green_wave.py`).
+- [x] Nagpur Multi-Junction Traffic Simulator (`simulation/city_simulator.py`).
+- [x] React Vite Operator Dashboard (`frontend/`).
+- [ ] Quantized YOLO/MobileNet edge vision video inference worker on raw RTSP video.
