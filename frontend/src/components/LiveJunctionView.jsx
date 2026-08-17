@@ -65,64 +65,69 @@ export default function LiveJunctionView({ junction, telemetry, signalTiming }) 
   const queueVal = Number(currentApproachTelemetry.queue_length_m ?? (pcuVal * 6.0));
   const speedVal = Number(currentApproachTelemetry.avg_speed_kmh ?? 20.0);
 
-  // Simulated bounding box tracks with realistic dense Indian traffic (14-16 distinct vehicles per approach)
+  // Simulated bounding box tracks with realistic dense Indian traffic across full width (4 lanes: x from 40px to 600px)
   const APPROACH_SPECIFIC_TRACKS = {
     APP_NORTH: [
-      { id: 101, class: 'bus', label: '🚌 Volvo City Bus #101', bbox: [110, 20, 95, 120], speed: 28.0, pcu: 3.0 },
-      { id: 102, class: 'car', label: '🚗 White Swift #102', bbox: [230, 140, 75, 70], speed: 36.5, pcu: 1.0 },
-      { id: 103, class: 'car', label: '🚙 Creta SUV #103', bbox: [340, 60, 85, 80], speed: 34.0, pcu: 1.0 },
-      { id: 104, class: 'two_wheeler', label: '🏍 Pulsar 220 #104', bbox: [160, 210, 35, 50], speed: 42.0, pcu: 0.5 },
+      { id: 101, class: 'bus', label: '🚌 Volvo City Bus #101', bbox: [45, 20, 100, 120], speed: 28.0, pcu: 3.0 },
+      { id: 102, class: 'car', label: '🚗 White Swift #102', bbox: [170, 140, 75, 70], speed: 36.5, pcu: 1.0 },
+      { id: 103, class: 'car', label: '🚙 Creta SUV #103', bbox: [290, 60, 85, 80], speed: 34.0, pcu: 1.0 },
+      { id: 104, class: 'two_wheeler', label: '🏍 Pulsar 220 #104', bbox: [160, 250, 36, 50], speed: 42.0, pcu: 0.5 },
       { id: 105, class: 'two_wheeler', label: '🛵 Activa 6G #105', bbox: [270, 240, 35, 48], speed: 32.5, pcu: 0.5 },
-      { id: 106, class: 'auto_rickshaw', label: '🛺 CNG Auto #106', bbox: [380, 180, 60, 65], speed: 25.0, pcu: 0.8 },
-      { id: 107, class: 'car', label: '🚗 Honda City #107', bbox: [220, 20, 78, 72], speed: 38.0, pcu: 1.0 },
-      { id: 108, class: 'two_wheeler', label: '🏍 Royal Enfield #108', bbox: [130, 280, 38, 52], speed: 35.0, pcu: 0.5 },
-      { id: 109, class: 'auto_rickshaw', label: '🛺 Passenger Auto #109', bbox: [300, 120, 58, 62], speed: 24.0, pcu: 0.8 },
-      { id: 110, class: 'two_wheeler', label: '🛵 Jupiter 125 #110', bbox: [410, 260, 34, 46], speed: 30.0, pcu: 0.5 },
-      { id: 111, class: 'car', label: '🚗 Baleno #111', bbox: [120, 170, 74, 68], speed: 33.0, pcu: 1.0 },
-      { id: 112, class: 'truck', label: '🚚 Tata Ace Mini #112', bbox: [340, 280, 70, 80], speed: 22.0, pcu: 1.5 },
+      { id: 106, class: 'auto_rickshaw', label: '🛺 CNG Auto #106', bbox: [390, 180, 62, 65], speed: 25.0, pcu: 0.8 },
+      { id: 107, class: 'car', label: '🚗 Honda City #107', bbox: [210, 10, 78, 72], speed: 38.0, pcu: 1.0 },
+      { id: 108, class: 'two_wheeler', label: '🏍 Royal Enfield #108', bbox: [80, 280, 38, 52], speed: 35.0, pcu: 0.5 },
+      { id: 109, class: 'auto_rickshaw', label: '🛺 Passenger Auto #109', bbox: [480, 130, 60, 62], speed: 24.0, pcu: 0.8 },
+      { id: 110, class: 'two_wheeler', label: '🛵 Jupiter 125 #110', bbox: [550, 240, 35, 46], speed: 30.0, pcu: 0.5 },
+      { id: 111, class: 'car', label: '🚗 Baleno #111', bbox: [320, 220, 74, 68], speed: 33.0, pcu: 1.0 },
+      { id: 112, class: 'truck', label: '🚚 Tata Ace Mini #112', bbox: [430, 40, 75, 85], speed: 22.0, pcu: 1.5 },
     ],
     APP_SOUTH: [
-      { id: 201, class: 'truck', label: '🚛 Ashok Leyland Truck #201', bbox: [310, 10, 105, 135], speed: 22.5, pcu: 3.0 },
-      { id: 202, class: 'bus', label: '🚌 MSRTC State Bus #202', bbox: [120, 70, 95, 125], speed: 26.0, pcu: 3.0 },
-      { id: 203, class: 'car', label: '🚗 Red Nexon #203', bbox: [230, 160, 78, 72], speed: 35.0, pcu: 1.0 },
-      { id: 204, class: 'two_wheeler', label: '🏍 Hero Splendor #204', bbox: [160, 220, 36, 50], speed: 30.0, pcu: 0.5 },
-      { id: 205, class: 'auto_rickshaw', label: '🛺 Nagpur Auto #205', bbox: [360, 190, 62, 66], speed: 23.5, pcu: 0.8 },
-      { id: 206, class: 'car', label: '🚗 Ertiga Cab #206', bbox: [220, 30, 82, 75], speed: 32.0, pcu: 1.0 },
-      { id: 207, class: 'two_wheeler', label: '🏍 TVS Apache #207', bbox: [140, 270, 36, 50], speed: 38.0, pcu: 0.5 },
-      { id: 208, class: 'two_wheeler', label: '🛵 Access 125 #208', bbox: [280, 250, 35, 48], speed: 29.0, pcu: 0.5 },
-      { id: 209, class: 'car', label: '🚗 Hyundai i20 #209', bbox: [330, 120, 75, 70], speed: 34.0, pcu: 1.0 },
-      { id: 210, class: 'two_wheeler', label: '🏍 Shine 125 #210', bbox: [390, 280, 34, 46], speed: 28.0, pcu: 0.5 },
+      { id: 201, class: 'truck', label: '🚛 Ashok Leyland Truck #201', bbox: [50, 10, 105, 135], speed: 22.5, pcu: 3.0 },
+      { id: 202, class: 'bus', label: '🚌 MSRTC State Bus #202', bbox: [180, 70, 95, 125], speed: 26.0, pcu: 3.0 },
+      { id: 203, class: 'car', label: '🚗 Red Nexon #203', bbox: [300, 160, 78, 72], speed: 35.0, pcu: 1.0 },
+      { id: 204, class: 'two_wheeler', label: '🏍 Hero Splendor #204', bbox: [150, 260, 36, 50], speed: 30.0, pcu: 0.5 },
+      { id: 205, class: 'auto_rickshaw', label: '🛺 Nagpur Auto #205', bbox: [420, 190, 62, 66], speed: 23.5, pcu: 0.8 },
+      { id: 206, class: 'car', label: '🚗 Ertiga Cab #206', bbox: [270, 30, 82, 75], speed: 32.0, pcu: 1.0 },
+      { id: 207, class: 'two_wheeler', label: '🏍 TVS Apache #207', bbox: [90, 240, 36, 50], speed: 38.0, pcu: 0.5 },
+      { id: 208, class: 'two_wheeler', label: '🛵 Access 125 #208', bbox: [370, 250, 35, 48], speed: 29.0, pcu: 0.5 },
+      { id: 209, class: 'car', label: '🚗 Hyundai i20 #209', bbox: [470, 80, 76, 70], speed: 34.0, pcu: 1.0 },
+      { id: 210, class: 'two_wheeler', label: '🏍 Shine 125 #210', bbox: [540, 230, 35, 46], speed: 28.0, pcu: 0.5 },
       { id: 211, class: 'auto_rickshaw', label: '🛺 Shared Auto #211', bbox: [120, 180, 60, 64], speed: 21.0, pcu: 0.8 },
     ],
     APP_EAST: [
-      { id: 301, class: 'auto_rickshaw', label: '🛺 Green CNG Auto #301', bbox: [140, 120, 60, 65], speed: 16.0, pcu: 0.8 },
-      { id: 302, class: 'auto_rickshaw', label: '🛺 Yellow City Auto #302', bbox: [230, 170, 60, 65], speed: 14.5, pcu: 0.8 },
-      { id: 303, class: 'auto_rickshaw', label: '🛺 Station Shared Auto #303', bbox: [330, 90, 62, 68], speed: 17.0, pcu: 0.8 },
-      { id: 304, class: 'car', label: '🚕 Airport Taxi #304', bbox: [160, 40, 75, 70], speed: 19.0, pcu: 1.0 },
-      { id: 305, class: 'two_wheeler', label: '🛵 Swiggy Delivery 2W #305', bbox: [290, 220, 36, 48], speed: 22.0, pcu: 0.5 },
-      { id: 306, class: 'truck', label: '🚚 Market Mini-Truck #306', bbox: [240, 10, 85, 95], speed: 13.5, pcu: 1.5 },
-      { id: 307, class: 'auto_rickshaw', label: '🛺 Cargo Auto #307', bbox: [130, 240, 60, 65], speed: 15.0, pcu: 0.8 },
-      { id: 308, class: 'two_wheeler', label: '🏍 Zomato Courier #308', bbox: [360, 180, 36, 48], speed: 23.0, pcu: 0.5 },
-      { id: 309, class: 'car', label: '🚗 White WagonR #309', bbox: [310, 20, 72, 68], speed: 18.0, pcu: 1.0 },
-      { id: 310, class: 'two_wheeler', label: '🛵 Electric Scooter #310', bbox: [210, 260, 34, 46], speed: 20.0, pcu: 0.5 },
-      { id: 311, class: 'auto_rickshaw', label: '🛺 Metro Feeder Auto #311', bbox: [370, 250, 60, 64], speed: 14.0, pcu: 0.8 },
+      { id: 301, class: 'auto_rickshaw', label: '🛺 Green CNG Auto #301', bbox: [60, 120, 60, 65], speed: 16.0, pcu: 0.8 },
+      { id: 302, class: 'auto_rickshaw', label: '🛺 Yellow City Auto #302', bbox: [170, 170, 60, 65], speed: 14.5, pcu: 0.8 },
+      { id: 303, class: 'auto_rickshaw', label: '🛺 Station Shared Auto #303', bbox: [280, 90, 62, 68], speed: 17.0, pcu: 0.8 },
+      { id: 304, class: 'car', label: '🚕 Airport Taxi #304', bbox: [380, 40, 75, 70], speed: 19.0, pcu: 1.0 },
+      { id: 305, class: 'two_wheeler', label: '🛵 Swiggy Delivery 2W #305', bbox: [130, 240, 36, 48], speed: 22.0, pcu: 0.5 },
+      { id: 306, class: 'truck', label: '🚚 Market Mini-Truck #306', bbox: [490, 20, 85, 95], speed: 13.5, pcu: 1.5 },
+      { id: 307, class: 'auto_rickshaw', label: '🛺 Cargo Auto #307', bbox: [230, 240, 60, 65], speed: 15.0, pcu: 0.8 },
+      { id: 308, class: 'two_wheeler', label: '🏍 Zomato Courier #308', bbox: [340, 220, 36, 48], speed: 23.0, pcu: 0.5 },
+      { id: 309, class: 'car', label: '🚗 White WagonR #309', bbox: [200, 10, 72, 68], speed: 18.0, pcu: 1.0 },
+      { id: 310, class: 'two_wheeler', label: '🛵 Electric Scooter #310', bbox: [440, 240, 34, 46], speed: 20.0, pcu: 0.5 },
+      { id: 311, class: 'auto_rickshaw', label: '🛺 Metro Feeder Auto #311', bbox: [530, 160, 60, 64], speed: 14.0, pcu: 0.8 },
     ],
     APP_WEST: [
-      { id: 401, class: 'two_wheeler', label: '🏍 Classic 350 #401', bbox: [170, 190, 40, 55], speed: 28.0, pcu: 0.5 },
-      { id: 402, class: 'two_wheeler', label: '🛵 Ola S1 Pro #402', bbox: [240, 220, 35, 48], speed: 30.0, pcu: 0.5 },
-      { id: 403, class: 'two_wheeler', label: '🏍 Yamaha FZ #403', bbox: [320, 180, 38, 52], speed: 32.0, pcu: 0.5 },
-      { id: 404, class: 'car', label: '🚗 Nexon EV #404', bbox: [190, 80, 80, 75], speed: 33.0, pcu: 1.0 },
-      { id: 405, class: 'auto_rickshaw', label: '🛺 Smart Auto #405', bbox: [300, 110, 60, 65], speed: 22.0, pcu: 0.8 },
-      { id: 406, class: 'car', label: '🚗 Honda Amaze #406', bbox: [220, 10, 76, 70], speed: 31.0, pcu: 1.0 },
-      { id: 407, class: 'two_wheeler', label: '🛵 TVS Ntorq #407', bbox: [140, 260, 35, 48], speed: 29.0, pcu: 0.5 },
-      { id: 408, class: 'two_wheeler', label: '🏍 KTM Duke 200 #408', bbox: [360, 240, 36, 50], speed: 36.0, pcu: 0.5 },
-      { id: 409, class: 'car', label: '🚗 Maruti Brezza #409', bbox: [310, 30, 80, 74], speed: 30.0, pcu: 1.0 },
-      { id: 410, class: 'auto_rickshaw', label: '🛺 Clean Air Auto #410', bbox: [130, 130, 58, 62], speed: 21.0, pcu: 0.8 },
+      { id: 401, class: 'two_wheeler', label: '🏍 Classic 350 #401', bbox: [70, 190, 40, 55], speed: 28.0, pcu: 0.5 },
+      { id: 402, class: 'two_wheeler', label: '🛵 Ola S1 Pro #402', bbox: [180, 220, 35, 48], speed: 30.0, pcu: 0.5 },
+      { id: 403, class: 'two_wheeler', label: '🏍 Yamaha FZ #403', bbox: [290, 180, 38, 52], speed: 32.0, pcu: 0.5 },
+      { id: 404, class: 'car', label: '🚗 Nexon EV #404', bbox: [390, 80, 80, 75], speed: 33.0, pcu: 1.0 },
+      { id: 405, class: 'auto_rickshaw', label: '🛺 Smart Auto #405', bbox: [490, 130, 60, 65], speed: 22.0, pcu: 0.8 },
+      { id: 406, class: 'car', label: '🚗 Honda Amaze #406', bbox: [140, 20, 76, 70], speed: 31.0, pcu: 1.0 },
+      { id: 407, class: 'two_wheeler', label: '🛵 TVS Ntorq #407', bbox: [230, 260, 35, 48], speed: 29.0, pcu: 0.5 },
+      { id: 408, class: 'two_wheeler', label: '🏍 KTM Duke 200 #408', bbox: [350, 240, 36, 50], speed: 36.0, pcu: 0.5 },
+      { id: 409, class: 'car', label: '🚗 Maruti Brezza #409', bbox: [460, 30, 80, 74], speed: 30.0, pcu: 1.0 },
+      { id: 410, class: 'auto_rickshaw', label: '🛺 Clean Air Auto #410', bbox: [530, 220, 58, 62], speed: 21.0, pcu: 0.8 },
     ],
   };
 
   const simulatedTracks = APPROACH_SPECIFIC_TRACKS[selectedCam] || APPROACH_SPECIFIC_TRACKS.APP_NORTH;
 
+  // Real-time dynamic oscillating traffic metrics as vehicles pass
+  const dynamicShift = Math.sin(playbackTime / 15) * 3.5;
+  const displayQueue = Math.max(12, Math.round(queueVal + dynamicShift * 2.5));
+  const displayVolume = Math.max(2, Math.round(pcuVal + dynamicShift * 0.8));
+  const displaySpeed = Math.max(14, Math.round(speedVal + Math.cos(playbackTime / 12) * 2.0));
 
   return (
     <div className="panel-container">
@@ -158,7 +163,7 @@ export default function LiveJunctionView({ junction, telemetry, signalTiming }) 
           <div className="hud-stat-item">
             <span className="stat-label">Signal Box Safety</span>
             <span className="stat-badge safe" style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(52, 211, 153, 0.3)' }}>
-              ✓ 100% Safe (No Dual Green)
+              🟢 Safe & Protected
             </span>
           </div>
           <div className="hud-stat-item">
@@ -170,23 +175,20 @@ export default function LiveJunctionView({ junction, telemetry, signalTiming }) 
         </div>
       </div>
 
-      {/* ─── Main 2-Column Grid: Video Feed with Detection Overlay & Approaches Breakdown ─── */}
+      {/* ─── Main 2-Column Grid: Live AI Camera (Left) + Queue Monitor (Right) ─── */}
       <div className="grid-2col">
-        {/* Left Column: Live Video Feed Simulation with Detection Overlays */}
-        <div className="card feed-card">
+        {/* Left Column: Live CCTV Camera View */}
+        <div className="card live-cam-card">
           <div className="card-header">
             <div className="card-title-group">
               <Camera size={18} className="text-blue" />
-              <span className="card-title">Live Camera & Vehicle AI Detection</span>
+              <span className="card-title">Live AI Camera Feed (Edge AI Detection)</span>
             </div>
-            <div className="feed-tags">
-              <span className="badge-pill live-pill">
-                <span className="pulse-dot"></span> LIVE CAMERA
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <span className="badge-pill pulse-badge">
+                <span className="pulse-dot" /> LIVE 30 FPS
               </span>
               <span className="badge-pill tech-pill">
-                <Cpu size={12} /> AI Vehicle Counter
-              </span>
-              <span className="badge-pill" style={{ backgroundColor: 'rgba(56, 189, 248, 0.12)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.25)', fontSize: '11px', padding: '3px 8px', borderRadius: '4px' }}>
                 📏 Smart Distance Meter
               </span>
             </div>
@@ -208,12 +210,13 @@ export default function LiveJunctionView({ junction, telemetry, signalTiming }) 
             ))}
           </div>
 
-          {/* Simulated CCTV Stream Canvas Container */}
+          {/* Simulated CCTV Stream Canvas Container (Full Width 100% Coverage) */}
           <div className="video-viewport">
             {/* Background Grid & Road Lanes */}
             <div className="road-carriageway">
               <div className="lane-divider divider-1" />
               <div className="lane-divider divider-2" />
+              <div className="lane-divider divider-3" />
               <div className="stopline-marker">
                 <span className="stopline-text">TRAFFIC STOP LINE</span>
               </div>
@@ -221,7 +224,7 @@ export default function LiveJunctionView({ junction, telemetry, signalTiming }) 
 
             {/* Live Bounding Box Detections Overlay */}
             {simulatedTracks.map((trk) => {
-              const yOffset = ((trk.bbox[1] + playbackTime * (trk.speed / 14.0) * 2.0) % 340);
+              const yOffset = ((trk.bbox[1] + playbackTime * (trk.speed / 14.0) * 2.0) % 380);
               return (
                 <div
                   key={trk.id}
@@ -241,25 +244,25 @@ export default function LiveJunctionView({ junction, telemetry, signalTiming }) 
               );
             })}
 
-            {/* Approach Queue Length & PCU Metric Overlay */}
+            {/* Approach Queue Length & PCU Metric Overlay (Positioned aside on Top Right) */}
             <div className="feed-hud-overlay">
               <div className="overlay-metric">
                 <span className="metric-label">Viewing Direction:</span>
-                <span className="metric-val">{activeCam.name || activeCam.id}</span>
+                <span className="metric-val" style={{ color: '#38bdf8' }}>{activeCam.name || activeCam.id}</span>
               </div>
               <div className="overlay-metric">
                 <span className="metric-label">Traffic Line:</span>
                 <span className="metric-val highlight">
-                  {queueVal.toFixed(0)} meters long
+                  {displayQueue} meters long
                 </span>
               </div>
               <div className="overlay-metric">
                 <span className="metric-label">Traffic Volume:</span>
-                <span className="metric-val">{pcuVal.toFixed(0)} vehicles</span>
+                <span className="metric-val">{displayVolume} vehicles</span>
               </div>
               <div className="overlay-metric">
                 <span className="metric-label">Average Speed:</span>
-                <span className="metric-val">{speedVal.toFixed(0)} km/h</span>
+                <span className="metric-val">{displaySpeed} km/h</span>
               </div>
             </div>
 
