@@ -224,7 +224,7 @@ export default function LiveJunctionView({ junction, telemetry, signalTiming }) 
 
             {/* Live Bounding Box Detections Overlay */}
             {simulatedTracks.map((trk) => {
-              const yOffset = ((trk.bbox[1] + playbackTime * (trk.speed / 14.0) * 2.0) % 380);
+              const yOffset = ((trk.bbox[1] + playbackTime * (trk.speed / 14.0) * 2.0) % 540);
               return (
                 <div
                   key={trk.id}
@@ -272,11 +272,6 @@ export default function LiveJunctionView({ junction, telemetry, signalTiming }) 
                 <ShieldAlert size={18} /> 🚨 EMERGENCY AMBULANCE DETECTED — TURNING GREEN
               </div>
             )}
-          </div>
-
-          <div className="feed-footer-meta">
-            <span>Camera Feed: <code>{activeCam.camera_source || 'rtsp://nagpur-camera.city:554/stream1'}</code></span>
-            <span>AI Response Speed: <strong>Instant (14 ms)</strong> | Internet Used: <strong>Ultra-Low (4 KB/s)</strong></span>
           </div>
         </div>
 

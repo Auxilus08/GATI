@@ -430,16 +430,17 @@ body {
   white-space: nowrap;
 }
 
-.cam-tab-btn.active {
-  background-color: #0284c7;
-  color: #fff;
-  border-color: #0284c7;
+.live-cam-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
 }
 
 .video-viewport {
   position: relative;
   width: 100%;
-  height: 380px;
+  flex: 1;
+  min-height: 540px;
   background: radial-gradient(circle at center, #1b263b 0%, #0d131f 100%);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
