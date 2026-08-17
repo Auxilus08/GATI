@@ -1,0 +1,47 @@
+# Junction Configuration: Ajni Square (Nagpur)
+junction_id: "NGP_J04_AJNI_SQ"
+name: "Ajni Square"
+corridor_id: "CORR_WARDHA_RD"
+coordinates:
+  latitude: 21.1210
+  longitude: 79.0750
+
+approaches:
+  - id: "APP_NORTH"
+    name: "Wardha Road (from Rahate Colony)"
+    direction: "Northbound"
+    camera_source: "rtsp://192.168.1.113:554/stream1"
+    lanes: 3
+    saturation_flow_pcu_hr: 1800
+    downstream_junction_id: "NGP_J03_RAHATE_COLONY"
+  - id: "APP_SOUTH"
+    name: "Wardha Road (towards Chhatrapati Square)"
+    direction: "Southbound"
+    camera_source: "rtsp://192.168.1.114:554/stream1"
+    lanes: 3
+    saturation_flow_pcu_hr: 1800
+    downstream_junction_id: "NGP_J05_CHHATRAPATI_SQ"
+  - id: "APP_EAST"
+    name: "Ajni Railway Station Approach"
+    direction: "Eastbound"
+    camera_source: "rtsp://192.168.1.115:554/stream1"
+    lanes: 2
+    saturation_flow_pcu_hr: 1300
+    downstream_junction_id: null
+  - id: "APP_WEST"
+    name: "Chunabhatti / Medical College Road"
+    direction: "Westbound"
+    camera_source: "rtsp://192.168.1.116:554/stream1"
+    lanes: 2
+    saturation_flow_pcu_hr: 1300
+    downstream_junction_id: null
+
+phases:
+  - phase_id: 1
+    name: "Wardha Road Main Corridor Green"
+    active_approaches: ["APP_NORTH", "APP_SOUTH"]
+    conflicting_phases: [2]
+  - phase_id: 2
+    name: "Ajni Station Cross Clearance"
+    active_approaches: ["APP_EAST", "APP_WEST"]
+    conflicting_phases: [1]
