@@ -11,6 +11,7 @@ import {
   Radio,
   Zap,
   RotateCcw,
+  Sparkles,
 } from 'lucide-react';
 import { fetchAITrafficPrediction } from '../services/api';
 
@@ -534,74 +535,132 @@ export default function AITrafficPredictionWidget({ junctionId = 'NGP_J01_SITABU
         </div>
       </div>
 
-      {/* ─── AI Recommendations Section ─── */}
+      {/* ─── AI Recommendations Section (Real-Time Live Channel) ─── */}
       <div style={{ marginBottom: '18px' }}>
         <div
           style={{
-            fontSize: '12px',
-            fontWeight: 700,
-            color: '#94a3b8',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
             marginBottom: '10px',
-            letterSpacing: '0.6px',
           }}
         >
-          AI RECOMMENDATIONS
+          <div
+            style={{
+              fontSize: '12px',
+              fontWeight: 700,
+              color: '#94a3b8',
+              letterSpacing: '0.6px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <Sparkles size={14} style={{ color: '#38bdf8' }} />
+            <span>AI RECOMMENDATIONS (REAL-TIME LIVE DATA CHANNEL)</span>
+          </div>
+
+          <span
+            style={{
+              backgroundColor: 'rgba(16, 185, 129, 0.15)',
+              color: '#34d399',
+              fontSize: '10px',
+              fontWeight: 700,
+              padding: '2px 8px',
+              borderRadius: '10px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+          >
+            <span
+              style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                backgroundColor: '#10b981',
+                animation: 'pulse 1.5s infinite',
+              }}
+            />
+            LIVE DATA STREAM ACTIVE
+          </span>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          {/* Recommendation 1: Peak Alert */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              backgroundColor: 'rgba(234, 179, 8, 0.12)',
-              border: '1px solid rgba(234, 179, 8, 0.3)',
-              borderRadius: '8px',
-              padding: '10px 14px',
-              fontSize: '13px',
-              color: '#fef08a',
-            }}
-          >
-            <AlertTriangle size={16} style={{ color: '#eab308', flexShrink: 0 }} />
-            <span>Peak traffic expected between <strong>17:00-20:00</strong>. Consider alternate routes.</span>
-          </div>
+          {(predictionData?.recommendations || []).length > 0 ? (
+            predictionData.recommendations.map((rec, i) => {
+              const isWarn = rec.type === 'warning';
+              const isSuccess = rec.type === 'success';
 
-          {/* Recommendation 2: Best Travel Window */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              backgroundColor: 'rgba(16, 185, 129, 0.12)',
-              border: '1px solid rgba(16, 185, 129, 0.3)',
-              borderRadius: '8px',
-              padding: '10px 14px',
-              fontSize: '13px',
-              color: '#a7f3d0',
-            }}
-          >
-            <CheckCircle2 size={16} style={{ color: '#10b981', flexShrink: 0 }} />
-            <span>Best travel window: <strong>11:00-14:00</strong> with minimal congestion.</span>
-          </div>
+              const bg = isWarn
+                ? 'rgba(234, 179, 8, 0.12)'
+                : isSuccess
+                ? 'rgba(16, 185, 129, 0.12)'
+                : 'rgba(2, 132, 199, 0.12)';
+              const border = isWarn
+                ? 'rgba(234, 179, 8, 0.35)'
+                : isSuccess
+                ? 'rgba(16, 185, 129, 0.35)'
+                : 'rgba(2, 132, 199, 0.35)';
+              const textColor = isWarn
+                ? '#fef08a'
+                : isSuccess
+                ? '#a7f3d0'
+                : '#bae6fd';
+              const iconColor = isWarn
+                ? '#eab308'
+                : isSuccess
+                ? '#10b981'
+                : '#38bdf8';
 
-          {/* Recommendation 3: Optimization Action */}
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              backgroundColor: 'rgba(2, 132, 199, 0.12)',
-              border: '1px solid rgba(2, 132, 199, 0.3)',
-              borderRadius: '8px',
-              padding: '10px 14px',
-              fontSize: '13px',
-              color: '#bae6fd',
-            }}
-          >
-            <BarChart2 size={16} style={{ color: '#38bdf8', flexShrink: 0 }} />
-            <span>Signal timing dynamically optimized for current live traffic patterns.</span>
-          </div>
+              return (
+                <div
+                  key={rec.id || i}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    backgroundColor: bg,
+                    border: `1px solid ${border}`,
+                    borderRadius: '8px',
+                    padding: '10px 14px',
+                    fontSize: '12.5px',
+                    color: textColor,
+                    transition: 'all 0.3s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    {isWarn ? (
+                      <AlertTriangle size={16} style={{ color: iconColor, flexShrink: 0 }} />
+                    ) : isSuccess ? (
+                      <CheckCircle2 size={16} style={{ color: iconColor, flexShrink: 0 }} />
+                    ) : (
+                      <BarChart2 size={16} style={{ color: iconColor, flexShrink: 0 }} />
+                    )}
+                    <span>{rec.text}</span>
+                  </div>
+
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      color: '#94a3b8',
+                      backgroundColor: 'rgba(0,0,0,0.3)',
+                      padding: '2px 6px',
+                      borderRadius: '4px',
+                      marginLeft: '12px',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Live
+                  </span>
+                </div>
+              );
+            })
+          ) : (
+            <div style={{ fontSize: '12px', color: '#64748b', textAlign: 'center', padding: '10px' }}>
+              Synchronizing with live AI prediction data channel...
+            </div>
+          )}
         </div>
       </div>
 
