@@ -174,18 +174,27 @@ export default function App() {
 
       {/* Main Work Area with City Traffic Map and Panels */}
       <main className="main-content">
-        {/* Live Nagpur City Traffic Map with Clickable Junction Nodes */}
-        <CityTrafficMap
-          junctions={junctions}
-          selectedJunctionId={selectedJunctionId}
-          onSelectJunction={(jid) => setSelectedJunctionId(jid)}
-        />
+        {/* Top 2-Column Row: Real City Traffic Map (Left) + Edge Incident & Authority Dispatch Console (Right) */}
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1.15fr 0.85fr',
+            gap: '16px',
+            marginBottom: '18px',
+            alignItems: 'stretch',
+          }}
+        >
+          <CityTrafficMap
+            junctions={junctions}
+            selectedJunctionId={selectedJunctionId}
+            onSelectJunction={(jid) => setSelectedJunctionId(jid)}
+          />
 
-        {/* Real-Time Safety & Incident Alert Toast / Dispatch Console */}
-        <SafetyAlertToastAndPanel
-          junctionId={selectedJunctionId}
-          onEventAction={() => loadJunctionData(selectedJunctionId)}
-        />
+          <SafetyAlertToastAndPanel
+            junctionId={selectedJunctionId}
+            onEventAction={() => loadJunctionData(selectedJunctionId)}
+          />
+        </div>
 
         {/* Panel 1: Live Junction View */}
         {activeTab === 'live' && (

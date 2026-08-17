@@ -195,11 +195,14 @@ export default function CityTrafficMap({
     <div
       className="card"
       style={{
-        padding: '12px 16px',
-        marginBottom: '16px',
+        padding: '14px 16px',
+        marginBottom: 0,
         backgroundColor: '#0a101d',
         border: '1px solid #1e293b',
-        borderRadius: '10px',
+        borderRadius: '12px',
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%',
       }}
     >
       {/* Sleek Compact Header */}
