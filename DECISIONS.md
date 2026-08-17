@@ -119,3 +119,30 @@ Log of every non-trivial engineering/product decision made on GATI.
 - **Impact:** Guarantees safety compliance with Indian Road Congress standards while giving the adaptive algorithm wide dynamic range (15s–60s) to clear queues.
 - **Reversibility:** High. All parameters are configured in YAML settings.
 
+## [2026-08-17] Short-Horizon Congestion Forecasting: Double Exponential Smoothing Over Deep LSTM
+- **Decision:** Use Holt's Linear Trend with Damped Extrapolation for near-future (10-30 minute) queue length and PCU forecasting instead of deep learning sequence models (LSTM / GRU / Transformers).
+- **Context:** At this prototype phase, the system operates on live and rolling telemetry (last 30–120 readings, ~2–6 minutes of data). Deep neural models require multi-month historical time-series datasets spanning diurnal cycles, day-of-week patterns, and monsoon variations, and would overfit drastically on short testing sequences.
+- **Alternatives considered:**
+  - *Deep LSTM / GRU Networks:* High compute footprint on central/edge CPU, unvalidated on real multi-season Indian datasets, and opaque error bounds.
+  - *ARIMA / SARIMA:* Requires stationary time-series fitting with higher compute cost per step and poor adaptability to sudden live traffic surges.
+  - *Holt's Linear Damped Smoothing (Selected):* Lightweight (< 0.1ms compute), tracks instantaneous queue velocity, dampens runaway linear extrapolation ($\phi=0.98$), and requires zero offline pre-training.
+- **Impact:** Delivers reliable 10–30 minute traffic queue projections that are fully explainable and deterministic.
+- **Reversibility:** High. When historical city data (e.g. 6+ months of continuous telemetry) is collected, neural forecasters can be slotted into `central/analytics/forecaster.py` behind the same interface.
+
+## [2026-08-17] Anomaly & Incident Detection: Displacement-Based Stalled Vehicle Classification
+- **Decision:** Detect stalled vehicles, breakdowns, and junction blockages by measuring spatial trajectory displacement ($< 1.5\text{m}$) over a configurable duration threshold (default: $20.0\text{s}$).
+- **Context:** Stalled vehicles in Indian intersections (e.g. auto-rickshaws breaking down mid-turn, stalled city buses) create severe bottleneck shockwaves. Detecting them early from vision tracks allows automated police alerts before gridlock propagates.
+- **Alternatives considered:**
+  - *Zero Speed Only:* Prone to false positives from normal red-light queue stops.
+  - *Pure Optical Flow Heatmaps:* Cannot identify specific vehicle track IDs or track persistent duration across frames.
+- **Impact:** Spatial displacement tracking reliably separates moving/filtering vehicles from stalled blockages, automatically clearing incidents when the vehicle resumes motion.
+- **Reversibility:** High. Configurable in `central/analytics/incident_detector.py`.
+
+## [2026-08-17] Live Risk Indicator: Real Kinematics vs Synthetic Historical Accident Data
+- **Decision:** Compute the Live Approach Risk Indicator ($0\text{--}100$) strictly from **real tracked trajectory kinematics** (Speed Variance, Hard Braking deceleration $a < -3.5\text{m/s}^2$, and Near-Miss spatial conflict proxies $\text{TTC} < 1.5\text{s}$, $d < 2.0\text{m}$) and **strictly reject synthetic/invented historical accident databases**.
+- **Context:** Many traffic demos fake a "historical black-spot risk score" using synthetic CSVs of invented past accidents. GATI enforces absolute data integrity for municipal governance: every risk point must be provably derived from live CCTV trajectory dynamics.
+- **Trade-off:** We trade off multi-year historical black-spot ranking for this prototype in exchange for defensible, 100% real-data-driven surrogate safety indicators. Multi-year police FIR accident geo-spatial indexing is explicitly classified as **FUTURE WORK** when authentic municipal records become available.
+- **Impact:** Provides an authentic, real-time Surrogate Safety Measure (SSM) that detects sudden flow turbulence, aggressive overtaking, and near-collisions without faking data.
+- **Reversibility:** High. When verified police accident GIS records are integrated, they will feed an offline black-spot layer without altering live kinematic risk scoring.
+
+

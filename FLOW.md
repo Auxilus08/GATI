@@ -107,11 +107,13 @@ GATI (Governance-ready AI Traffic Intelligence) is an edge-first, retrofit-ready
 │       └── edge_client.py            # Telemetry client with offline caching
 ├── scripts/
 │   ├── run_traffic_pipeline.py       # Vision pipeline runner & synthetic video generator
-│   └── compare_signal_performance.py # Signal performance benchmark & before/after evidence CLI
+│   ├── compare_signal_performance.py # Signal performance benchmark & before/after evidence CLI
+│   └── run_analytics_pipeline.py     # Real-data traffic analytics execution CLI
 ├── tests/
 │   ├── __init__.py
 │   ├── test_vision_pipeline.py       # Vision unit test suite
-│   └── test_signal_controller.py     # Max-Pressure, override, and comparison test suite
+│   ├── test_signal_controller.py     # Max-Pressure, override, and comparison test suite
+│   └── test_analytics.py             # Forecasting, incident detection, and live risk test suite
 ├── central/
 │   ├── api/
 │   │   ├── main.py                   # FastAPI app & CORS middleware
@@ -124,7 +126,11 @@ GATI (Governance-ready AI Traffic Intelligence) is an edge-first, retrofit-ready
 │   │       ├── corridor.py           # /api/v1/corridors/ green wave endpoints
 │   │       └── analytics.py          # /api/v1/analytics/ city summary & forecast
 │   ├── analytics/
-│   │   ├── forecaster.py             # Holt's linear queue forecaster
+│   │   ├── __init__.py               # Analytics module exports
+│   │   ├── forecaster.py             # Holt's linear trend 10-30 min queue forecaster
+│   │   ├── incident_detector.py      # Real-time stalled vehicle & gridlock detector
+│   │   ├── live_risk_indicator.py    # Speed variance, hard braking & near-miss surrogate safety
+│   │   ├── analytics_engine.py       # Unified analytics pipeline orchestrator
 │   │   ├── anomaly_detector.py       # Z-score statistical surge detector
 │   │   └── risk_index.py             # 0-100 Junction Risk Index evaluator
 │   └── coordinator/
@@ -206,6 +212,71 @@ GATI (Governance-ready AI Traffic Intelligence) is an edge-first, retrofit-ready
       },
       "emergency_vehicle_detected": false,
       "emergency_vehicle_count": 0
+    }
+  }
+}
+```
+
+- **Short-Horizon Congestion Forecast Payload (`analytics_forecasts.jsonl`):**
+```json
+{
+  "timestamp": 1723800003.0,
+  "forecasts": {
+    "APP_NORTH": {
+      "approach_id": "APP_NORTH",
+      "current_pcu": 14.5,
+      "current_count": 22,
+      "current_queue_meters": 87.0,
+      "forecast_10min_pcu": 18.2,
+      "forecast_15min_pcu": 20.1,
+      "forecast_30min_pcu": 23.4,
+      "forecast_10min_queue_m": 109.2,
+      "forecast_30min_queue_m": 140.4,
+      "trend_direction": "INCREASING",
+      "trend_slope_pcu_per_min": 0.45,
+      "forecast_trajectory_pcu": [16.2, 18.2, 20.1, 21.5, 22.6, 23.4]
+    }
+  }
+}
+```
+
+- **Real-Time Incident & Stalled Vehicle Alert (`analytics_incidents.jsonl`):**
+```json
+{
+  "incident_id": "4e1a7b82",
+  "track_id": 104,
+  "vehicle_type": "auto_rickshaw",
+  "incident_type": "STALLED_VEHICLE",
+  "severity": "HIGH",
+  "stationary_duration_sec": 32.5,
+  "location_xy": [310.5, 280.2],
+  "bbox": [290, 260, 330, 300],
+  "approach_id": "APP_NORTH",
+  "timestamp": 1723800032.5,
+  "description": "Track #104 (auto_rickshaw) stationary for 32.5s (displacement 0.42m < 1.5m)"
+}
+```
+
+- **Live Approach Safety & Risk Score (`analytics_live_risk.jsonl` / `csv`):**
+```json
+{
+  "timestamp": 1723800003.0,
+  "risks": {
+    "APP_NORTH": {
+      "approach_id": "APP_NORTH",
+      "live_risk_score": 48.5,
+      "risk_level": "ELEVATED",
+      "speed_variance": 74.2,
+      "hard_braking_count": 2,
+      "near_miss_count": 1,
+      "average_speed_kmh": 22.4,
+      "active_vehicle_count": 14,
+      "timestamp": 1723800003.0,
+      "contributing_factors": [
+        "High speed variance (74.2 (km/h)^2)",
+        "2 hard braking event(s)",
+        "1 critical near-miss prox(ies)"
+      ]
     }
   }
 }
@@ -297,12 +368,17 @@ GATI (Governance-ready AI Traffic Intelligence) is an edge-first, retrofit-ready
   - [x] Signal performance comparison harness computing wait time and queue reduction from real tracked data (`edge/controller/comparison_harness.py`).
   - [x] Before/after performance comparison CLI tool (`scripts/compare_signal_performance.py`).
   - [!] *Note on RL controller:* Reinforcement learning is explicitly **DEFERRED** in favor of mathematically provable, safe Max-Pressure control.
+- [x] **Real-Data Traffic Analytics Module** (`central/analytics/`):
+  - [x] Short-horizon (10-30 min) congestion forecaster with damped Holt linear trend (`central/analytics/forecaster.py`).
+  - [x] Real-time stalled vehicle & gridlock incident detector from trajectory displacement (`central/analytics/incident_detector.py`).
+  - [x] Live approach risk indicator computed strictly from kinematic surrogate safety measures: speed variance, hard braking ($a < -3.5\text{m/s}^2$), and near-miss proxies ($\text{TTC} < 1.5\text{s}$) (`central/analytics/live_risk_indicator.py`).
+  - [x] Analytics pipeline CLI runner with structured JSONL/CSV logging (`scripts/run_analytics_pipeline.py`).
+  - [!] *Note on historical crash database:* Multi-year police FIR accident black-spot spatial ranking is **DEFERRED / FUTURE WORK**; live prototype relies 100% on defensible live CCTV kinematics with zero synthetic accident data.
 - [x] Edge telemetry client with offline buffer (`edge/telemetry/edge_client.py`).
 - [x] Central FastAPI backend with REST & WebSockets (`central/api/`).
-- [x] Holt's Linear Queue Forecaster & Z-Score Anomaly Detector (`central/analytics/`).
-- [x] Junction Risk Index Engine (`central/analytics/risk_index.py`).
 - [x] Corridor Green Wave Progression Coordinator (`central/coordinator/green_wave.py`).
 - [x] Nagpur Multi-Junction Traffic Simulator (`simulation/city_simulator.py`).
 - [x] React Vite Operator Dashboard (`frontend/`).
+
 
 
