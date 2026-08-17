@@ -33,14 +33,14 @@ export default function Navbar({
         </div>
       </div>
 
-      {/* 3-Panel View Switcher Tabs (Strictly 3 Panels as requested) */}
+      {/* 3-Panel View Switcher Tabs in Simple Human-Friendly Words */}
       <nav className="nav-tabs">
         <button
           className={`nav-tab-btn ${activeTab === 'live' ? 'active' : ''}`}
           onClick={() => setActiveTab('live')}
         >
           <Activity size={16} />
-          <span>1. Live Junction View</span>
+          <span>1. Live Camera & Signal</span>
         </button>
 
         <button
@@ -48,7 +48,7 @@ export default function Navbar({
           onClick={() => setActiveTab('command')}
         >
           <Sliders size={16} />
-          <span>2. Command View</span>
+          <span>2. Smart Signal Controls</span>
         </button>
 
         <button
@@ -56,7 +56,7 @@ export default function Navbar({
           onClick={() => setActiveTab('predictive')}
         >
           <TrendingUp size={16} />
-          <span>3. Predictive / Risk View</span>
+          <span>3. Predictions & Safety Risk</span>
         </button>
       </nav>
 

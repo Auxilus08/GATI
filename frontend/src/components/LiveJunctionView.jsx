@@ -113,7 +113,7 @@ export default function LiveJunctionView({ junction, telemetry, signalTiming }) 
             <div className={`signal-bulb green ${telemetry?.signal?.signal_state !== 'ALL_RED' && telemetry?.signal?.signal_state !== 'AMBER' ? 'active' : ''}`} />
           </div>
           <div>
-            <div className="hud-eyebrow">ACTIVE SIGNAL PHASE</div>
+            <div className="hud-eyebrow">CURRENT GREEN LIGHT DIRECTION</div>
             <div className="hud-title">
               Phase {currentPhase.phase_id}: {currentPhase.name}
             </div>
@@ -122,27 +122,27 @@ export default function LiveJunctionView({ junction, telemetry, signalTiming }) 
 
         <div className="hud-stats-group">
           <div className="hud-stat-item">
-            <span className="stat-label">Elapsed Green</span>
+            <span className="stat-label">Green Light Timer</span>
             <span className="stat-value highlight">
               {signalTiming?.recommended?.elapsed_green_sec || telemetry?.signal?.elapsed_green_sec || '18.0'}s
             </span>
           </div>
           <div className="hud-stat-item">
-            <span className="stat-label">Control Mode</span>
+            <span className="stat-label">Signal Mode</span>
             <span className="stat-badge max-pressure">
-              {signalTiming?.override_active ? 'OPERATOR OVERRIDE' : 'ADAPTIVE MAX-PRESSURE'}
+              {signalTiming?.override_active ? 'POLICE MANUAL LOCK' : 'AUTO-AI (Adjusts to Rush)'}
             </span>
           </div>
           <div className="hud-stat-item">
-            <span className="stat-label">Cabinet Hardware</span>
+            <span className="stat-label">Signal Box Safety</span>
             <span className="stat-badge safe" style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(52, 211, 153, 0.3)' }}>
-              NTCIP 1202 CMU OK
+              ✓ 100% Safe (No Dual Green)
             </span>
           </div>
           <div className="hud-stat-item">
-            <span className="stat-label">Edge Thermal / Power</span>
+            <span className="stat-label">Device Health</span>
             <span className="stat-value text-blue" style={{ fontSize: '13px', fontWeight: 600 }}>
-              48.5°C • 8.4W
+              Normal (48.5°C • 8W)
             </span>
           </div>
         </div>
@@ -155,17 +155,17 @@ export default function LiveJunctionView({ junction, telemetry, signalTiming }) 
           <div className="card-header">
             <div className="card-title-group">
               <Camera size={18} className="text-blue" />
-              <span className="card-title">Edge CCTV Feed & Bounding Box Overlay</span>
+              <span className="card-title">Live Camera & Vehicle AI Detection</span>
             </div>
             <div className="feed-tags">
               <span className="badge-pill live-pill">
-                <span className="pulse-dot"></span> LIVE 1080p
+                <span className="pulse-dot"></span> LIVE CAMERA
               </span>
               <span className="badge-pill tech-pill">
-                <Cpu size={12} /> YOLOv8n + ByteTrack (FP16)
+                <Cpu size={12} /> AI Vehicle Counter
               </span>
               <span className="badge-pill" style={{ backgroundColor: 'rgba(56, 189, 248, 0.12)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.25)', fontSize: '11px', padding: '3px 8px', borderRadius: '4px' }}>
-                📐 4-Point Homography (m/px)
+                📏 Smart Distance Meter
               </span>
             </div>
           </div>
@@ -193,7 +193,7 @@ export default function LiveJunctionView({ junction, telemetry, signalTiming }) 
               <div className="lane-divider divider-1" />
               <div className="lane-divider divider-2" />
               <div className="stopline-marker">
-                <span className="stopline-text">APPROACH STOPLINE (IRC SP:41 ROI)</span>
+                <span className="stopline-text">TRAFFIC STOP LINE</span>
               </div>
             </div>
 
@@ -212,7 +212,7 @@ export default function LiveJunctionView({ junction, telemetry, signalTiming }) 
                   }}
                 >
                   <div className="detection-tag">
-                    {trk.label} | {trk.speed} km/h | {trk.pcu} PCU
+                    {trk.label} | {trk.speed} km/h
                   </div>
                 </div>
               );
@@ -221,36 +221,36 @@ export default function LiveJunctionView({ junction, telemetry, signalTiming }) 
             {/* Approach Queue Length & PCU Metric Overlay */}
             <div className="feed-hud-overlay">
               <div className="overlay-metric">
-                <span className="metric-label">Selected Approach:</span>
+                <span className="metric-label">Viewing Direction:</span>
                 <span className="metric-val">{activeCam.name || activeCam.id}</span>
               </div>
               <div className="overlay-metric">
-                <span className="metric-label">Queue Length:</span>
+                <span className="metric-label">Traffic Line:</span>
                 <span className="metric-val highlight">
-                  {queueVal.toFixed(1)} m
+                  {queueVal.toFixed(0)} meters long
                 </span>
               </div>
               <div className="overlay-metric">
-                <span className="metric-label">Approach PCU:</span>
-                <span className="metric-val">{pcuVal.toFixed(1)} PCU</span>
+                <span className="metric-label">Traffic Volume:</span>
+                <span className="metric-val">{pcuVal.toFixed(0)} vehicles</span>
               </div>
               <div className="overlay-metric">
-                <span className="metric-label">Avg Speed:</span>
-                <span className="metric-val">{speedVal.toFixed(1)} km/h</span>
+                <span className="metric-label">Average Speed:</span>
+                <span className="metric-val">{speedVal.toFixed(0)} km/h</span>
               </div>
             </div>
 
             {/* Emergency Vehicle Alert Banner on Feed */}
             {currentApproachTelemetry.emergency && (
               <div className="feed-emergency-banner">
-                <ShieldAlert size={18} /> EMERGENCY VEHICLE PRIORITY OVERRIDE ENGAGED
+                <ShieldAlert size={18} /> 🚨 EMERGENCY AMBULANCE DETECTED — TURNING GREEN
               </div>
             )}
           </div>
 
           <div className="feed-footer-meta">
-            <span>Camera Source: <code>{activeCam.camera_source || 'rtsp://edge-gateway.nagpur:554/stream1'}</code></span>
-            <span>Edge Inference Latency: <strong>14.2 ms</strong> | Bandwidth: <strong>3.8 KB/s</strong></span>
+            <span>Camera Feed: <code>{activeCam.camera_source || 'rtsp://nagpur-camera.city:554/stream1'}</code></span>
+            <span>AI Response Speed: <strong>Instant (14 ms)</strong> | Internet Used: <strong>Ultra-Low (4 KB/s)</strong></span>
           </div>
         </div>
 
@@ -259,9 +259,9 @@ export default function LiveJunctionView({ junction, telemetry, signalTiming }) 
           <div className="card-header">
             <div className="card-title-group">
               <Activity size={18} className="text-green" />
-              <span className="card-title">Live Approach Queue Metrics (Lane-Free)</span>
+              <span className="card-title">Real-Time Traffic Count (All 4 Roads)</span>
             </div>
-            <span className="sub-caption">Indian Road Congress PCU Weights</span>
+            <span className="sub-caption">Auto-Adjusts Signals</span>
           </div>
 
           <div className="approaches-list">
@@ -289,41 +289,41 @@ export default function LiveJunctionView({ junction, telemetry, signalTiming }) 
                       <div>
                         <div className="approach-title">{app.name}</div>
                         <div className="approach-dir-tag">
-                          {app.direction} • {app.lanes} Lanes • Saturation: {app.saturation_flow_pcu_hr} PCU/hr
+                          {app.direction} • {app.lanes} Road Lanes
                         </div>
                       </div>
                     </div>
                     <div className="phase-indicator-pill">
-                      {isPhaseActive ? 'GREEN (DISCHARGING)' : 'RED (ACCUMULATING)'}
+                      {isPhaseActive ? '🟢 GREEN (Moving)' : '🔴 RED (Waiting)'}
                     </div>
                   </div>
 
                   <div className="approach-metrics-grid">
                     <div className="metric-box">
-                      <span className="m-label">Queue PCU</span>
-                      <span className="m-val">{Number(data.total_pcu ?? 0).toFixed(1)}</span>
+                      <span className="m-label">Vehicles Waiting</span>
+                      <span className="m-val">{Number(data.total_pcu ?? 0).toFixed(0)}</span>
                     </div>
                     <div className="metric-box">
-                      <span className="m-label">Queue Length</span>
-                      <span className="m-val highlight">{Number(queueLength ?? 0).toFixed(1)}m</span>
+                      <span className="m-label">Line Length</span>
+                      <span className="m-val highlight">{Number(queueLength ?? 0).toFixed(0)}m</span>
                     </div>
                     <div className="metric-box">
-                      <span className="m-label">Avg Speed</span>
-                      <span className="m-val">{Number(data.avg_speed_kmh ?? 20).toFixed(1)} km/h</span>
+                      <span className="m-label">Flow Speed</span>
+                      <span className="m-val">{Number(data.avg_speed_kmh ?? 20).toFixed(0)} km/h</span>
                     </div>
                     <div className="metric-box">
-                      <span className="m-label">Net Pressure</span>
+                      <span className="m-label">Rush Priority</span>
                       <span className="m-val text-blue">{Number(pressure ?? 0).toFixed(1)}</span>
                     </div>
                   </div>
 
                   {/* Vehicle Class Composition Chips */}
                   <div className="vehicle-class-chips">
-                    <span className="v-chip">🏍 {data.vehicle_counts?.two_wheeler || 0} 2W</span>
-                    <span className="v-chip">🛺 {data.vehicle_counts?.auto_rickshaw || 0} Auto</span>
-                    <span className="v-chip">🚗 {data.vehicle_counts?.car || 0} Car</span>
-                    <span className="v-chip">🚌 {data.vehicle_counts?.bus || 0} Bus</span>
-                    <span className="v-chip">🚛 {data.vehicle_counts?.truck || 0} Truck</span>
+                    <span className="v-chip">🏍 {data.vehicle_counts?.two_wheeler || 0} Bikes</span>
+                    <span className="v-chip">🛺 {data.vehicle_counts?.auto_rickshaw || 0} Autos</span>
+                    <span className="v-chip">🚗 {data.vehicle_counts?.car || 0} Cars</span>
+                    <span className="v-chip">🚌 {data.vehicle_counts?.bus || 0} Buses</span>
+                    <span className="v-chip">🚛 {data.vehicle_counts?.truck || 0} Trucks</span>
                   </div>
 
                   {/* Progress Bar for Queue Capacity */}

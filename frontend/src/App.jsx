@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Navbar from './components/Navbar';
+import CityTrafficMap from './components/CityTrafficMap';
 import LiveJunctionView from './components/LiveJunctionView';
 import CommandView from './components/CommandView';
 import PredictiveRiskView from './components/PredictiveRiskView';
@@ -170,8 +171,15 @@ export default function App() {
         isConnected={isConnected}
       />
 
-      {/* Main 3-Panel Work Area */}
+      {/* Main Work Area with City Traffic Map and Panels */}
       <main className="main-content">
+        {/* Live Nagpur City Traffic Map with Clickable Junction Nodes */}
+        <CityTrafficMap
+          junctions={junctions}
+          selectedJunctionId={selectedJunctionId}
+          onSelectJunction={(jid) => setSelectedJunctionId(jid)}
+        />
+
         {/* Panel 1: Live Junction View */}
         {activeTab === 'live' && (
           <LiveJunctionView
