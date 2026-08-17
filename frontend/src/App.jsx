@@ -209,6 +209,7 @@ export default function App() {
         {activeTab === 'command' && (
           <CommandView
             junction={junctionDetail}
+            telemetry={telemetry}
             signalTiming={signalTiming}
             comparisonData={comparisonData}
             onRefresh={() => loadJunctionData(selectedJunctionId)}

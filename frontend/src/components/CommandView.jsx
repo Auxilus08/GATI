@@ -23,6 +23,7 @@ import EmergencyCorridorConsole from './EmergencyCorridorConsole';
 
 export default function CommandView({
   junction,
+  telemetry,
   signalTiming,
   comparisonData,
   onRefresh,
@@ -172,7 +173,7 @@ export default function CommandView({
       <EmergencyCorridorConsole onEmergencyTriggered={onRefresh} />
 
       {/* ─── Interactive Dynamic Asymmetric Split & Cascading Corridor Visualizer ─── */}
-      <DynamicSplitAndCorridorVisualizer />
+      <DynamicSplitAndCorridorVisualizer telemetry={telemetry} />
 
       {/* ─── Headline Before/After Performance KPIs (In View Header as required) ─── */}
       <div className="command-kpi-banner">
