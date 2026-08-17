@@ -13,6 +13,7 @@ import {
   Info,
 } from 'lucide-react';
 import { fetchForecast, fetchIncidents, fetchLiveRisk } from '../services/api';
+import AITrafficPredictionWidget from './AITrafficPredictionWidget';
 
 const DEFAULT_FORECASTS = {
   APP_NORTH: {
@@ -158,6 +159,9 @@ export default function PredictiveRiskView({ junction }) {
 
   return (
     <div className="panel-container">
+      {/* ─── AI Traffic Prediction Widget (Hourly & Weekly Forecasts) ─── */}
+      <AITrafficPredictionWidget />
+
       {/* ─── Top Row: 2-Column Grid (Forecast Chart & Real-Time Incident Feed) ─── */}
       <div className="grid-2col">
         {/* Left Card: 10-30 min Congestion Forecast Chart */}
