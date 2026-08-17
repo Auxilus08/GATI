@@ -109,17 +109,27 @@ def load_junction_config(junction_id_or_file: str) -> JunctionConfig:
     Load specific junction configuration by junction ID or file name.
     Avoids hardcoding geometry in algorithmic code.
     """
-    if not junction_id_or_file.endswith(".yaml") and not junction_id_or_file.endswith(".yml"):
-        candidates = list(JUNCTIONS_DIR.glob(f"*{junction_id_or_file.lower()}*.yaml"))
-        if not candidates:
-            # Fallback exact search
-            candidates = [p for p in JUNCTIONS_DIR.glob("*.yaml") if junction_id_or_file.lower() in p.stem.lower()]
-        if not candidates:
-            raise FileNotFoundError(f"No junction config found for ID: {junction_id_or_file}")
-        filepath = candidates[0]
-    else:
+    if junction_id_or_file.endswith(".yaml") or junction_id_or_file.endswith(".yml"):
         filepath = JUNCTIONS_DIR / junction_id_or_file
+        if filepath.exists():
+            with open(filepath, "r", encoding="utf-8") as f:
+                data = yaml.safe_load(f)
+            return JunctionConfig(**data)
 
+    # 1. Try filename search
+    candidates = list(JUNCTIONS_DIR.glob(f"*{junction_id_or_file.lower()}*.yaml"))
+    if not candidates:
+        # 2. Search inside all yaml files by matching junction_id or name
+        all_juncs = load_all_junction_configs()
+        if junction_id_or_file in all_juncs:
+            return all_juncs[junction_id_or_file]
+        # Partial match
+        for jid, jc in all_juncs.items():
+            if junction_id_or_file.lower() in jid.lower() or junction_id_or_file.lower() in jc.name.lower():
+                return jc
+        raise FileNotFoundError(f"No junction config found for ID: {junction_id_or_file}")
+
+    filepath = candidates[0]
     with open(filepath, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f)
     return JunctionConfig(**data)

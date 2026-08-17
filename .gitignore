@@ -49,3 +49,7 @@ yarn-error.log*
 *.pth
 data/raw_videos/
 logs/*.log
+scratch/
+*.mp4
+*.avi
+

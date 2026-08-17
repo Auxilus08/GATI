@@ -89,7 +89,12 @@ GATI (Governance-ready AI Traffic Intelligence) is an edge-first, retrofit-ready
 │       └── nagpur_varieties_sq.yaml  # Varieties Square geometry & phases
 ├── edge/
 │   ├── vision/
-│   │   ├── __init__.py               # TrackedVehicle & ApproachQueueMetrics dataclasses
+│   │   ├── __init__.py               # Core vision pipeline exports & dataclasses
+│   │   ├── taxonomy.py               # Indian traffic taxonomy & COCO heuristic mapping
+│   │   ├── tracker.py                # ByteTrack integration & per-vehicle velocity estimation
+│   │   ├── detector.py               # YOLOv8 & ONNX edge detector + approach ROI queue engine
+│   │   ├── export_onnx.py            # FP16/INT8 ONNX/TensorRT edge export utility
+│   │   ├── video_pipeline.py         # RTSP/Video stream processor & structured logger
 │   │   └── pcu_engine.py             # Indian PCU calculation engine
 │   ├── controller/
 │   │   ├── __init__.py
@@ -98,6 +103,11 @@ GATI (Governance-ready AI Traffic Intelligence) is an edge-first, retrofit-ready
 │   └── telemetry/
 │       ├── __init__.py
 │       └── edge_client.py            # Telemetry client with offline caching
+├── scripts/
+│   └── run_traffic_pipeline.py       # CLI runner, synthetic video generator & telemetry logger
+├── tests/
+│   ├── __init__.py
+│   └── test_vision_pipeline.py       # Vision, taxonomy, tracker & logging unit test suite
 ├── central/
 │   ├── api/
 │   │   ├── main.py                   # FastAPI app & CORS middleware
@@ -131,7 +141,73 @@ GATI (Governance-ready AI Traffic Intelligence) is an edge-first, retrofit-ready
 ```
 
 ### Key API Schemas & Data Shapes
-- **Telemetry Ingestion Payload:**
+
+- **Edge Vision Frame Telemetry (`vision_frames.jsonl`):**
+```json
+{
+  "junction_id": "NGP_J01_SITABULDI",
+  "frame_idx": 45,
+  "timestamp": 1723800003.0,
+  "vehicle_count": 5,
+  "vehicles": [
+    {
+      "track_id": 1,
+      "class": "car",
+      "confidence": 0.92,
+      "bbox": [260, 280, 310, 340],
+      "speed_kmh": 22.4,
+      "is_emergency": false
+    },
+    {
+      "track_id": 2,
+      "class": "auto_rickshaw",
+      "confidence": 0.86,
+      "bbox": [320, 310, 360, 360],
+      "speed_kmh": 14.1,
+      "is_emergency": false
+    }
+  ],
+  "approaches": {
+    "APP_NORTH": {
+      "total_pcu": 7.4,
+      "queue_length_m": 44.4,
+      "avg_speed_kmh": 18.2,
+      "emergency": false
+    }
+  }
+}
+```
+
+- **Edge Vision Window Telemetry (`vision_windows.jsonl` / `vision_windows.csv`):**
+```json
+{
+  "junction_id": "NGP_J01_SITABULDI",
+  "timestamp": 1723800003.0,
+  "approaches": {
+    "APP_NORTH": {
+      "approach_id": "APP_NORTH",
+      "timestamp": 1723800003.0,
+      "total_pcu": 14.5,
+      "queue_length_meters": 87.0,
+      "average_speed_kmh": 24.5,
+      "vehicle_counts": {
+        "two_wheeler": 12,
+        "auto_rickshaw": 4,
+        "car": 5,
+        "bus": 1,
+        "truck": 0,
+        "cycle": 1,
+        "pedestrian": 2,
+        "cart": 0
+      },
+      "emergency_vehicle_detected": false,
+      "emergency_vehicle_count": 0
+    }
+  }
+}
+```
+
+- **Central Ingestion Payload:**
 ```json
 {
   "junction_id": "NGP_J01_SITABULDI",
@@ -165,6 +241,15 @@ GATI (Governance-ready AI Traffic Intelligence) is an edge-first, retrofit-ready
 - [x] Modular repository layout with clean separation of concerns.
 - [x] Zero-hardcoding configuration system (`config/default_config.yaml`, `config/junctions/*.yaml`, `config/settings.py`).
 - [x] Indian Traffic PCU calculation engine (`edge/vision/pcu_engine.py`).
+- [x] **YOLOv8 Edge Detection & ByteTrack Multi-Object Tracking Pipeline** (`edge/vision/`):
+  - [x] YOLOv8 base detector with PyTorch and ONNX backends (`edge/vision/detector.py`).
+  - [x] ByteTrack multi-object tracking with trajectory history & velocity calculation (`edge/vision/tracker.py`).
+  - [x] Indian traffic class taxonomy mapping with auto-rickshaw/cart heuristics (`edge/vision/taxonomy.py`).
+  - [x] Lane-free Approach ROI queue length ($m$) & speed ($km/h$) aggregation (`edge/vision/detector.py`, `video_pipeline.py`).
+  - [x] ONNX FP16/INT8 export pipeline for Jetson Orin Nano edge deployment (`edge/vision/export_onnx.py`).
+  - [x] Structured JSON & CSV telemetry logging (`edge/vision/video_pipeline.py`).
+  - [x] CLI execution runner & synthetic Nagpur traffic video generator (`scripts/run_traffic_pipeline.py`).
+  - [!] *Note on IDD fine-tuning:* Full dataset fine-tuning on India Driving Dataset (IDD) is **DEFERRED** due to dataset volume and compute constraints; baseline uses pretrained COCO weights with geometric taxonomy translation heuristics.
 - [x] Signal phase safety state machine (`edge/controller/signal_state.py`).
 - [x] Max-Pressure adaptive controller (`edge/controller/max_pressure.py`).
 - [x] Edge telemetry client with offline buffer (`edge/telemetry/edge_client.py`).
@@ -174,4 +259,4 @@ GATI (Governance-ready AI Traffic Intelligence) is an edge-first, retrofit-ready
 - [x] Corridor Green Wave Progression Coordinator (`central/coordinator/green_wave.py`).
 - [x] Nagpur Multi-Junction Traffic Simulator (`simulation/city_simulator.py`).
 - [x] React Vite Operator Dashboard (`frontend/`).
-- [ ] Quantized YOLO/MobileNet edge vision video inference worker on raw RTSP video.
+
