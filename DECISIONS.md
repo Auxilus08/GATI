@@ -82,3 +82,40 @@ Log of every non-trivial engineering/product decision made on GATI.
   - *Pure Unquantized FP32 CPU Inference:* Incurred high latency (> 120ms/frame) on embedded ARM CPUs.
 - **Impact:** ONNX FP16 slimming achieves ~4x throughput improvement on edge NPU/Tensor Cores with negligible accuracy loss (< 0.5% mAP drop).
 - **Reversibility:** High. The detector supports `.pt`, `.onnx`, and `.engine` backends transparently.
+
+## [2026-08-17] Adaptive Signal Control: Max-Pressure Algorithm Over Reinforcement Learning
+- **Decision:** Implement classical distributed **Max-Pressure Control** (Varaiya / Tassiulas algorithm) as the core adaptive signal actuation engine; explicitly **defer Reinforcement Learning (RL)** to future exploration passes.
+- **Context:** Municipal traffic control requires mathematically proven queue-stability guarantees, zero-shot deployment without dangerous online trial-and-error exploration, and strict explainability for traffic police and municipal commissioners.
+- **Alternatives considered:**
+  - *Deep Reinforcement Learning (DQN / PPO / MADDPG):* Popular in research benchmarks, but plagued by sim-to-real transfer gaps, catastrophic policy collapse during abnormal surges, unconstrained reward hacking, and safety hazards during live road actuation. Presenting a half-baked RL policy as functional would violate engineering integrity.
+  - *Actuated / SCOOT Fixed Offset:* Too rigid for mixed Indian traffic surges with high variance.
+- **Impact:** Max-Pressure provides provable throughput maximization and network stability, runs with negligible compute latency (< 1ms per decision step on embedded ARM), and is 100% deterministic and auditable.
+- **Reversibility:** High. The controller interface consumes standardized `ApproachQueueMetrics` and can run an RL agent in shadow mode if needed in the future.
+
+## [2026-08-17] Human Operator Override Hook & Governance Audit Logging
+- **Decision:** Implement a fail-safe **Human Operator Override Hook** (`OverrideManager`) allowing traffic police officers or ICCC operators to lock a phase (e.g. VIP movement, emergency convoy, accident clearance) or release control back to autonomous Max-Pressure, with mandatory JSONL audit logging (`override_id`, `timestamp`, `phase_id`, `operator_id`, `reason`, `duration_sec`).
+- **Context:** Municipal traffic control cannot operate as an un-overridable black box. Indian Smart City ICCCs require traffic police authority over automated signals with strict accountability to prevent corruption or unmonitored tampering.
+- **Alternatives considered:**
+  - *Physical Cabinet Switch Only:* Lacks remote ICCC coordination and automated digital audit logging.
+  - *Unrestricted Software Override Without Audit:* Creates severe governance risk and lack of accountability for unauthorized manual holds.
+- **Impact:** Enforces strict audit trails for every manual intervention with configurable automatic timeout guardrails (default max 300s) to prevent abandoned locks.
+- **Reversibility:** High. Managed via clean middleware hook in `edge/controller/override_manager.py`.
+
+## [2026-08-17] Selection & Tuning of Minimum/Maximum Green Guardrails (IRC SP:41 Standards)
+- **Decision:** Standardize global default signal safety bounds to:
+  - **Minimum Green:** 15.0s (Emergency: 5.0s minimum absolute clearance).
+  - **Maximum Green:** 60.0s.
+  - **Amber Clearance:** 4.0s.
+  - **All-Red Clearance:** 2.0s.
+  - **Pedestrian Clearance:** 12.0s.
+  These values are externalized into `config/default_config.yaml` and can be overridden per junction in `config/junctions/<junction_id>.yaml`.
+- **Context:** Indian urban junctions have heavy pedestrian crossings, slow start-up lost time for overloaded commercial vehicles, and driver reaction delays.
+  - *Min Green (15s):* Prevents rapid phase flickering that causes driver confusion and rear-end collisions, while providing safe crossing time for pedestrians already in the carriageway.
+  - *Max Green (60s):* Prevents cross-street queue starvation during sustained arterial surges.
+  - *Amber (4s) + All-Red (2s):* Derived from IRC SP:41 / MoRTH standard junction clearance geometry (calculating stopping sight distance at 40-50 km/h design speed).
+- **Alternatives considered:**
+  - *Hardcoded Timing Constants in Controller:* Rejected to allow per-junction geometry tuning (e.g. larger multi-arm squares like Varieties Square in Nagpur require longer clearance intervals).
+  - *Ultra-Short Minimum Greens (< 8s):* Rejected due to extreme accident risk for pedestrians and slow two-wheelers.
+- **Impact:** Guarantees safety compliance with Indian Road Congress standards while giving the adaptive algorithm wide dynamic range (15s–60s) to clear queues.
+- **Reversibility:** High. All parameters are configured in YAML settings.
+

@@ -1,23 +1,52 @@
 """
 Max-Pressure Adaptive Signal Control Algorithm.
+
 Calculates upstream vs downstream queue differentials (pressure) per movement phase
-and selects the maximal pressure phase subject to minimum/maximum green bounds.
+and selects the maximal pressure phase subject to minimum/maximum green bounds
+and human operator overrides.
 """
-from typing import Dict, List, Optional
-from config.settings import JunctionConfig, MaxPressureConfig
+
+from dataclasses import dataclass
+import logging
+from typing import Any, Dict, List, Optional, Tuple
+from config.settings import JunctionConfig, MaxPressureConfig, SignalGuardrails
 from edge.vision import ApproachQueueMetrics
+from edge.controller.override_manager import OverrideManager
+
+logger = logging.getLogger("edge.max_pressure")
+
+
+@dataclass
+class ControllerDecision:
+    recommended_phase_id: int
+    current_phase_id: int
+    decision_reason: str  # "MAX_PRESSURE", "MIN_GREEN_HOLD", "MAX_GREEN_EXCEEDED", "EMERGENCY_OVERRIDE", "OPERATOR_OVERRIDE"
+    pressures: Dict[int, float]
+    elapsed_green_sec: float
+    is_switch: bool
+    override_active: bool = False
+    operator_id: Optional[str] = None
 
 
 class MaxPressureController:
     """
-    Max-Pressure Traffic Signal Optimizer.
-    Pressure for a phase = Sum(Upstream Approach PCU Queue - Downstream PCU Queue) * Weight.
+    Max-Pressure Traffic Signal Optimizer with Safety Guardrails & Human Override Hook.
+    Pressure for a phase = Sum(Upstream Approach PCU Queue - Downstream PCU Queue) * Priority Multipliers.
     """
 
-    def __init__(self, junction_config: JunctionConfig, mp_config: MaxPressureConfig):
+    def __init__(
+        self,
+        junction_config: JunctionConfig,
+        mp_config: MaxPressureConfig,
+        guardrails: Optional[SignalGuardrails] = None,
+        override_manager: Optional[OverrideManager] = None,
+    ):
         self.config = junction_config
         self.mp_config = mp_config
+        self.guardrails = guardrails or SignalGuardrails()
+        self.override_manager = override_manager or OverrideManager(junction_id=junction_config.junction_id)
         self.smoothed_pressures: Dict[int, float] = {p.phase_id: 0.0 for p in junction_config.phases}
+        self.phase_cycle_count: Dict[int, int] = {p.phase_id: 0 for p in junction_config.phases}
 
     def compute_phase_pressures(
         self,
@@ -26,6 +55,7 @@ class MaxPressureController:
     ) -> Dict[int, float]:
         """
         Compute pressure score for each phase based on current approach PCU and downstream spillback.
+        Pressure(Phase) = Sum_approaches(Upstream_PCU - 0.3 * Downstream_PCU) * Emergency_Multiplier
         """
         downstream = downstream_metrics or {}
         pressures: Dict[int, float] = {}
@@ -42,53 +72,136 @@ class MaxPressureController:
                     if metric.emergency_vehicle_detected:
                         emergency_boost = max(emergency_boost, self.mp_config.priority_override_multiplier)
 
-                # Check downstream resistance (if approach feeds into a congested downstream queue)
+                # Downstream spillback resistance
                 app_conf = next((a for a in self.config.approaches if a.id == app_id), None)
                 if app_conf and app_conf.downstream_junction_id:
                     phase_pcu_out += downstream.get(app_conf.downstream_junction_id, 0.0)
 
+            # Net queue pressure
             raw_pressure = max(0.0, (phase_pcu_in - 0.3 * phase_pcu_out)) * emergency_boost
 
-            # Exponential smoothing for phase stability
+            # Exponential smoothing for phase stability (alpha * current + (1 - alpha) * prev)
             prev_smoothed = self.smoothed_pressures.get(phase.phase_id, 0.0)
             alpha = self.mp_config.pressure_smoothing_alpha
-            smoothed = alpha * raw_pressure + (1 - alpha) * prev_smoothed
+            smoothed = alpha * raw_pressure + (1.0 - alpha) * prev_smoothed
             self.smoothed_pressures[phase.phase_id] = smoothed
             pressures[phase.phase_id] = round(smoothed, 2)
 
         return pressures
+
+    def evaluate_decision(
+        self,
+        approach_metrics: Dict[str, ApproachQueueMetrics],
+        current_phase_id: int,
+        elapsed_green_sec: float,
+        current_time: Optional[float] = None,
+        downstream_metrics: Optional[Dict[str, float]] = None,
+    ) -> ControllerDecision:
+        """
+        Evaluate full control logic at the current decision step.
+        Returns a ControllerDecision containing recommended phase, rationale, and diagnostics.
+        """
+        pressures = self.compute_phase_pressures(approach_metrics, downstream_metrics)
+
+        # 1. Check Human Operator Override Hook (Top Priority)
+        overridden_phase = self.override_manager.check_override_status(current_time=current_time)
+        if overridden_phase is not None:
+            op_event = self.override_manager.active_override
+            op_id = op_event.operator_id if op_event else "OPERATOR"
+            return ControllerDecision(
+                recommended_phase_id=overridden_phase,
+                current_phase_id=current_phase_id,
+                decision_reason=f"OPERATOR_OVERRIDE (Locked by {op_id})",
+                pressures=pressures,
+                elapsed_green_sec=elapsed_green_sec,
+                is_switch=(overridden_phase != current_phase_id),
+                override_active=True,
+                operator_id=op_id,
+            )
+
+        # 2. Check Emergency Vehicle Detection (Autonomous Priority Override)
+        for phase in self.config.phases:
+            for app_id in phase.active_approaches:
+                metric = approach_metrics.get(app_id)
+                if metric and metric.emergency_vehicle_detected:
+                    if phase.phase_id != current_phase_id:
+                        # Allow immediate switch to emergency phase after minimal 5s clearance
+                        if elapsed_green_sec >= 5.0:
+                            return ControllerDecision(
+                                recommended_phase_id=phase.phase_id,
+                                current_phase_id=current_phase_id,
+                                decision_reason="EMERGENCY_PRIORITY_OVERRIDE",
+                                pressures=pressures,
+                                elapsed_green_sec=elapsed_green_sec,
+                                is_switch=True,
+                            )
+
+        min_green = self.guardrails.min_green_seconds
+        max_green = self.guardrails.max_green_seconds
+
+        # 3. Minimum Green Guardrail: prevent rapid phase fluttering
+        if elapsed_green_sec < min_green:
+            return ControllerDecision(
+                recommended_phase_id=current_phase_id,
+                current_phase_id=current_phase_id,
+                decision_reason="MIN_GREEN_HOLD",
+                pressures=pressures,
+                elapsed_green_sec=elapsed_green_sec,
+                is_switch=False,
+            )
+
+        # 4. Maximum Green Guardrail: prevent cross-street starvation
+        if elapsed_green_sec >= max_green:
+            other_phases = {k: v for k, v in pressures.items() if k != current_phase_id}
+            best_other_phase = max(other_phases, key=other_phases.get) if other_phases else current_phase_id
+            return ControllerDecision(
+                recommended_phase_id=best_other_phase,
+                current_phase_id=current_phase_id,
+                decision_reason="MAX_GREEN_EXCEEDED",
+                pressures=pressures,
+                elapsed_green_sec=elapsed_green_sec,
+                is_switch=(best_other_phase != current_phase_id),
+            )
+
+        # 5. Autonomous Max-Pressure Selection
+        best_phase_id = max(pressures, key=pressures.get)
+        current_pressure = pressures.get(current_phase_id, 0.0)
+        best_pressure = pressures.get(best_phase_id, 0.0)
+
+        # Hysteresis margin: require at least 15% higher pressure to switch phase to avoid jitter
+        if best_phase_id != current_phase_id and best_pressure > (current_pressure * 1.15):
+            return ControllerDecision(
+                recommended_phase_id=best_phase_id,
+                current_phase_id=current_phase_id,
+                decision_reason="MAX_PRESSURE_SWITCH",
+                pressures=pressures,
+                elapsed_green_sec=elapsed_green_sec,
+                is_switch=True,
+            )
+
+        return ControllerDecision(
+            recommended_phase_id=current_phase_id,
+            current_phase_id=current_phase_id,
+            decision_reason="MAX_PRESSURE_HOLD",
+            pressures=pressures,
+            elapsed_green_sec=elapsed_green_sec,
+            is_switch=False,
+        )
 
     def select_best_phase(
         self,
         approach_metrics: Dict[str, ApproachQueueMetrics],
         current_phase_id: int,
         elapsed_green_sec: float,
-        min_green_sec: float = 15.0,
-        max_green_sec: float = 60.0,
+        min_green_sec: Optional[float] = None,
+        max_green_sec: Optional[float] = None,
         downstream_metrics: Optional[Dict[str, float]] = None,
     ) -> int:
-        """
-        Decide whether to maintain the current phase or switch to the highest pressure phase.
-        """
-        pressures = self.compute_phase_pressures(approach_metrics, downstream_metrics)
-
-        # Check for emergency override on any phase
-        for phase in self.config.phases:
-            for app_id in phase.active_approaches:
-                metric = approach_metrics.get(app_id)
-                if metric and metric.emergency_vehicle_detected:
-                    return phase.phase_id
-
-        # If minimum green has not elapsed, hold current phase
-        if elapsed_green_sec < min_green_sec:
-            return current_phase_id
-
-        # If max green is exceeded, must switch to next highest non-current phase
-        if elapsed_green_sec >= max_green_sec:
-            other_phases = {k: v for k, v in pressures.items() if k != current_phase_id}
-            if other_phases:
-                return max(other_phases, key=other_phases.get)
-
-        # Max pressure selection
-        best_phase_id = max(pressures, key=pressures.get)
-        return best_phase_id
+        """Backward-compatible wrapper returning best phase ID."""
+        decision = self.evaluate_decision(
+            approach_metrics=approach_metrics,
+            current_phase_id=current_phase_id,
+            elapsed_green_sec=elapsed_green_sec,
+            downstream_metrics=downstream_metrics,
+        )
+        return decision.recommended_phase_id

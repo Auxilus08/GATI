@@ -97,17 +97,21 @@ GATI (Governance-ready AI Traffic Intelligence) is an edge-first, retrofit-ready
 │   │   ├── video_pipeline.py         # RTSP/Video stream processor & structured logger
 │   │   └── pcu_engine.py             # Indian PCU calculation engine
 │   ├── controller/
-│   │   ├── __init__.py
+│   │   ├── __init__.py               # Controller module exports
 │   │   ├── signal_state.py           # Red/Amber/Green safety state machine
-│   │   └── max_pressure.py           # Max-Pressure pressure optimizer
+│   │   ├── max_pressure.py           # Max-Pressure adaptive controller & decision engine
+│   │   ├── override_manager.py       # Human operator phase lock & audit log manager
+│   │   └── comparison_harness.py     # Before/After fixed-time vs adaptive comparison engine
 │   └── telemetry/
 │       ├── __init__.py
 │       └── edge_client.py            # Telemetry client with offline caching
 ├── scripts/
-│   └── run_traffic_pipeline.py       # CLI runner, synthetic video generator & telemetry logger
+│   ├── run_traffic_pipeline.py       # Vision pipeline runner & synthetic video generator
+│   └── compare_signal_performance.py # Signal performance benchmark & before/after evidence CLI
 ├── tests/
 │   ├── __init__.py
-│   └── test_vision_pipeline.py       # Vision, taxonomy, tracker & logging unit test suite
+│   ├── test_vision_pipeline.py       # Vision unit test suite
+│   └── test_signal_controller.py     # Max-Pressure, override, and comparison test suite
 ├── central/
 │   ├── api/
 │   │   ├── main.py                   # FastAPI app & CORS middleware
@@ -207,6 +211,42 @@ GATI (Governance-ready AI Traffic Intelligence) is an edge-first, retrofit-ready
 }
 ```
 
+- **Human Operator Override Audit Record (`override_audit.jsonl`):**
+```json
+{
+  "override_id": "8f3b12a9",
+  "junction_id": "NGP_J01_SITABULDI",
+  "phase_id": 2,
+  "operator_id": "POLICE_ICCC_402",
+  "action": "LOCK",
+  "timestamp": 1723800120.0,
+  "reason": "VIP Motorcade Clearance",
+  "duration_sec": 120.0
+}
+```
+
+- **Signal Controller Comparison Summary Schema (`comparison_summary.json`):**
+```json
+{
+  "junction_id": "NGP_J01_SITABULDI",
+  "duration_sec": 300.0,
+  "total_timesteps": 100,
+  "fixed_total_delay_pcu_sec": 14200.0,
+  "fixed_avg_queue_m": 48.2,
+  "fixed_peak_queue_m": 112.0,
+  "fixed_avg_wait_sec": 42.5,
+  "mp_total_delay_pcu_sec": 9850.0,
+  "mp_avg_queue_m": 32.8,
+  "mp_peak_queue_m": 68.0,
+  "mp_avg_wait_sec": 29.4,
+  "wait_time_reduction_pct": 30.8,
+  "queue_reduction_pct": 31.9,
+  "total_delay_saved_pcu_sec": 4350.0,
+  "estimated_fuel_saved_liters": 0.96,
+  "co2_reduction_kg": 2.22
+}
+```
+
 - **Central Ingestion Payload:**
 ```json
 {
@@ -250,8 +290,13 @@ GATI (Governance-ready AI Traffic Intelligence) is an edge-first, retrofit-ready
   - [x] Structured JSON & CSV telemetry logging (`edge/vision/video_pipeline.py`).
   - [x] CLI execution runner & synthetic Nagpur traffic video generator (`scripts/run_traffic_pipeline.py`).
   - [!] *Note on IDD fine-tuning:* Full dataset fine-tuning on India Driving Dataset (IDD) is **DEFERRED** due to dataset volume and compute constraints; baseline uses pretrained COCO weights with geometric taxonomy translation heuristics.
-- [x] Signal phase safety state machine (`edge/controller/signal_state.py`).
-- [x] Max-Pressure adaptive controller (`edge/controller/max_pressure.py`).
+- [x] **Adaptive Signal Control & Before/After Comparison Module** (`edge/controller/`):
+  - [x] Max-Pressure adaptive controller with pressure smoothing & hysteresis (`edge/controller/max_pressure.py`).
+  - [x] Safety state machine & guardrails: min green (15s), max green (60s), amber (4s), all-red (2s) (`edge/controller/signal_state.py`).
+  - [x] Human operator override hook & governance audit logging (`edge/controller/override_manager.py`).
+  - [x] Signal performance comparison harness computing wait time and queue reduction from real tracked data (`edge/controller/comparison_harness.py`).
+  - [x] Before/after performance comparison CLI tool (`scripts/compare_signal_performance.py`).
+  - [!] *Note on RL controller:* Reinforcement learning is explicitly **DEFERRED** in favor of mathematically provable, safe Max-Pressure control.
 - [x] Edge telemetry client with offline buffer (`edge/telemetry/edge_client.py`).
 - [x] Central FastAPI backend with REST & WebSockets (`central/api/`).
 - [x] Holt's Linear Queue Forecaster & Z-Score Anomaly Detector (`central/analytics/`).
@@ -259,4 +304,5 @@ GATI (Governance-ready AI Traffic Intelligence) is an edge-first, retrofit-ready
 - [x] Corridor Green Wave Progression Coordinator (`central/coordinator/green_wave.py`).
 - [x] Nagpur Multi-Junction Traffic Simulator (`simulation/city_simulator.py`).
 - [x] React Vite Operator Dashboard (`frontend/`).
+
 
