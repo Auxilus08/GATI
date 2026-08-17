@@ -3,8 +3,13 @@
  * Direct bridge to FastAPI backend endpoints.
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/api/v1';
-const WS_BASE_URL = import.meta.env.VITE_WS_URL || 'ws://127.0.0.1:8000/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL
+  || (import.meta.env.DEV ? 'http://127.0.0.1:8000/api/v1' : '/api/v1');
+
+const WS_BASE_URL = import.meta.env.VITE_WS_URL
+  || (import.meta.env.DEV
+    ? 'ws://127.0.0.1:8000/api/v1'
+    : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/api/v1`);
 
 /* ─── Junctions & Geometry ─────────────────────────────────────────── */
 

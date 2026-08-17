@@ -2,10 +2,20 @@
 
 [![Scale Target](https://img.shields.io/badge/Target%20Scale-Nagpur%20(50--150%20Junctions)-0284c7.svg)](#scale-target--core-principles)
 [![Architecture](https://img.shields.io/badge/Architecture-Edge--First%20%7C%20Retrofit-10b981.svg)](#architecture-overview)
-[![Tests](https://img.shields.io/badge/Tests-48%2F48%20Passed-brightgreen.svg)](#test-suite-verification)
+[![Tests](https://img.shields.io/badge/Tests-69%2F69%20Passed-brightgreen.svg)](#test-suite-verification)
 [![License](https://img.shields.io/badge/License-MIT-gray.svg)](LICENSE)
 
 > **GATI (Governance-ready AI Traffic Intelligence)** is an edge-first, retrofit software layer that converts existing municipal CCTV and ANPR camera feeds into real-time adaptive traffic signals and proactive risk analytics — requiring zero new camera installations, cutting 4G bandwidth costs by >99%, and delivering measured wait-time reductions of over **30.8%**.
+
+---
+
+## 🌐 Live Vercel Demo
+
+- **Operator Dashboard:** [`https://gati-vercel-stage.vercel.app`](https://gati-vercel-stage.vercel.app)
+- **API Health:** [`https://gati-vercel-stage.vercel.app/api/v1/health`](https://gati-vercel-stage.vercel.app/api/v1/health)
+- **Seeded Demo Telemetry:** [`https://gati-vercel-stage.vercel.app/api/v1/telemetry/latest`](https://gati-vercel-stage.vercel.app/api/v1/telemetry/latest)
+
+The Vercel deployment runs the FastAPI API as a serverless function and serves the built React dashboard. Because Vercel does not run long-lived background simulator processes, the hosted demo seeds representative Nagpur junction telemetry on first request.
 
 ---
 
@@ -74,5 +84,5 @@ Run the full automated unit and integration test suite:
 ```bash
 python -m pytest tests/
 ```
-Output: **48 passed in ~1.5s** (100% test pass rate).
+Output: **69 passed** (100% test pass rate).
 

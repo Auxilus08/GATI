@@ -5,10 +5,10 @@ Indian PCU queue calculation, approach-level metrics, and structured telemetry l
 """
 
 from dataclasses import dataclass, field
+from importlib import import_module
 from typing import Dict, List, Optional, Tuple
 
 from edge.vision.taxonomy import IndianTrafficClass, IndianTrafficTaxonomy, IRC_PCU_WEIGHTS
-from edge.vision.tracker import ByteTrackerManager, TrackState, VelocityEstimator
 
 
 @dataclass
@@ -33,11 +33,27 @@ class ApproachQueueMetrics:
     emergency_vehicle_count: int = 0
     confidence_score: float = 1.0
 
+_LAZY_EXPORTS = {
+    "ByteTrackerManager": ("edge.vision.tracker", "ByteTrackerManager"),
+    "TrackState": ("edge.vision.tracker", "TrackState"),
+    "VelocityEstimator": ("edge.vision.tracker", "VelocityEstimator"),
+    "PCUEngine": ("edge.vision.pcu_engine", "PCUEngine"),
+    "YOLODetector": ("edge.vision.detector", "YOLODetector"),
+    "ApproachROI": ("edge.vision.detector", "ApproachROI"),
+    "TrafficVideoPipeline": ("edge.vision.video_pipeline", "TrafficVideoPipeline"),
+    "StructuredTelemetryWriter": ("edge.vision.video_pipeline", "StructuredTelemetryWriter"),
+}
 
 
-from edge.vision.pcu_engine import PCUEngine
-from edge.vision.detector import YOLODetector, ApproachROI
-from edge.vision.video_pipeline import TrafficVideoPipeline, StructuredTelemetryWriter
+def __getattr__(name: str):
+    """Lazy-load heavy vision exports so API-only deployments avoid OpenCV imports."""
+    if name not in _LAZY_EXPORTS:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+    module_name, attr_name = _LAZY_EXPORTS[name]
+    attr = getattr(import_module(module_name), attr_name)
+    globals()[name] = attr
+    return attr
 
 __all__ = [
     "TrackedVehicle",

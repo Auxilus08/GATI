@@ -11,13 +11,14 @@ Deliberately thin: all business logic lives in the modules above.
 """
 
 import logging
+import os
 import time
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from central.analytics.risk_index import JunctionRiskEngine
-from central.api.schemas.telemetry_schema import JunctionTelemetryReport
+from central.api.schemas.telemetry_schema import ApproachTelemetrySchema, JunctionTelemetryReport
 from central.api.state_store import (
     ApproachLiveState,
     JunctionLiveSnapshot,
@@ -31,6 +32,7 @@ logger = logging.getLogger("central.api.telemetry")
 
 router = APIRouter(prefix="/telemetry", tags=["Telemetry"])
 ws_manager = WebSocketManager()
+_vercel_demo_seeded = False
 
 
 # ─────────────────────────────────────────────────────────────
@@ -80,6 +82,57 @@ def _snapshot_from_report(
         emergency_active=report.emergency_active,
         analytics=analytics_summary,
     )
+
+
+async def _seed_vercel_demo_telemetry_if_needed():
+    """Seed first-request demo telemetry on Vercel, where no simulator runs."""
+    global _vercel_demo_seeded
+    if _vercel_demo_seeded or os.getenv("VERCEL") != "1":
+        return
+    if not junction_store.all_junction_ids():
+        junction_store.prewarm()
+    if any(junction_store.get(jid).latest_snapshot for jid in junction_store.all_junction_ids()):
+        _vercel_demo_seeded = True
+        return
+
+    now = time.time()
+    for idx, jid in enumerate(junction_store.all_junction_ids()):
+        jstate = junction_store.get(jid)
+        if not jstate:
+            continue
+
+        approaches = {}
+        for app_idx, approach in enumerate(jstate.config.approaches):
+            total_pcu = 12.0 + (idx * 3.5) + (app_idx * 4.2)
+            approaches[approach.id] = ApproachTelemetrySchema(
+                total_pcu=round(total_pcu, 1),
+                vehicle_counts={
+                    "two_wheeler": int(total_pcu * 0.8),
+                    "auto_rickshaw": int(total_pcu * 0.25),
+                    "car": int(total_pcu * 0.45),
+                    "bus": 1 if total_pcu > 20 else 0,
+                },
+                queue_length_m=round(total_pcu * 5.8, 1),
+                avg_speed_kmh=round(max(9.0, 42.0 - total_pcu * 0.55), 1),
+                emergency=False,
+            )
+
+        phases = jstate.config.phases or []
+        active_phase_id = phases[idx % len(phases)].phase_id if phases else 1
+        await report_telemetry(
+            JunctionTelemetryReport(
+                junction_id=jid,
+                timestamp=now + idx * 0.01,
+                active_phase_id=active_phase_id,
+                signal_state="GREEN",
+                pressures={active_phase_id: sum(a.total_pcu for a in approaches.values())},
+                approaches=approaches,
+                emergency_active=False,
+                elapsed_green_sec=12.0 + idx,
+            )
+        )
+
+    _vercel_demo_seeded = True
 
 
 # ─────────────────────────────────────────────────────────────
@@ -249,6 +302,7 @@ async def report_telemetry_batch(reports: List[JunctionTelemetryReport]):
 @router.get("/latest", summary="Latest telemetry snapshot for all active junctions")
 async def get_all_latest():
     """Aggregate latest state for every junction currently in the store."""
+    await _seed_vercel_demo_telemetry_if_needed()
     out = {}
     for jid in junction_store.all_junction_ids():
         jstate = junction_store.get(jid)
@@ -272,6 +326,7 @@ async def get_all_latest():
 @router.get("/latest/{junction_id}", summary="Latest telemetry snapshot for one junction")
 async def get_junction_latest(junction_id: str):
     """Retrieve the latest full state snapshot for a specific junction."""
+    await _seed_vercel_demo_telemetry_if_needed()
     jstate = junction_store.get(junction_id)
     if not jstate or not jstate.latest_snapshot:
         return {"junction_id": junction_id, "status": "no_data"}

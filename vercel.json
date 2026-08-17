@@ -1,0 +1,10 @@
+{
+  "installCommand": "python -m pip install -r api/requirements.txt && cd frontend && npm ci",
+  "buildCommand": "cd frontend && npm ci && npm run build",
+  "outputDirectory": "frontend/dist",
+  "functions": {
+    "api/[...path].py": {
+      "includeFiles": "frontend/dist/**"
+    }
+  }
+}

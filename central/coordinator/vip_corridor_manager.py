@@ -10,7 +10,7 @@ smoothly transitions back to autonomous Max-Pressure once the convoy passes.
 from dataclasses import dataclass
 import time
 import logging
-from typing import Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger("central.vip_corridor")
 

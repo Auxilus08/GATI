@@ -12,6 +12,8 @@ Multi-junction extensibility is achieved by lazy-init:
 from __future__ import annotations
 
 import logging
+import os
+import tempfile
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -30,8 +32,13 @@ from central.analytics.analytics_engine import AnalyticsEngine, AnalyticsBatchRe
 
 logger = logging.getLogger("central.state_store")
 
-# Audit logs written alongside the junction config area for persistence
-AUDIT_LOG_DIR = Path(__file__).resolve().parent.parent.parent / "scratch" / "audit_logs"
+# Audit logs are written alongside the repo locally, but serverless hosts like
+# Vercel only allow runtime writes in the temp directory.
+AUDIT_LOG_DIR = (
+    Path(tempfile.gettempdir()) / "gati" / "audit_logs"
+    if os.getenv("VERCEL")
+    else Path(__file__).resolve().parent.parent.parent / "scratch" / "audit_logs"
+)
 
 
 @dataclass
