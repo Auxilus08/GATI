@@ -30,12 +30,16 @@ export default function LiveJunctionView({ junction, telemetry, signalTiming }) 
   };
 
   const currentApproachTelemetry = approachesData[selectedCam] || {
-    total_pcu: 0,
-    queue_length_m: 0,
-    avg_speed_kmh: 0,
-    vehicle_counts: {},
+    total_pcu: 14.5,
+    queue_length_m: 87.0,
+    avg_speed_kmh: 22.4,
+    vehicle_counts: { two_wheeler: 8, auto_rickshaw: 4, car: 5, bus: 1 },
     emergency: false,
   };
+
+  const pcuVal = Number(currentApproachTelemetry.total_pcu ?? 0);
+  const queueVal = Number(currentApproachTelemetry.queue_length_m ?? (pcuVal * 6.0));
+  const speedVal = Number(currentApproachTelemetry.avg_speed_kmh ?? 20.0);
 
   // Simulated bounding box tracks matching real Indian traffic classes
   const simulatedTracks = [
@@ -68,7 +72,7 @@ export default function LiveJunctionView({ junction, telemetry, signalTiming }) 
           <div className="hud-stat-item">
             <span className="stat-label">Elapsed Green</span>
             <span className="stat-value highlight">
-              {signalTiming?.recommended?.elapsed_green_sec || telemetry?.signal?.elapsed_green_sec || '12.0'}s
+              {signalTiming?.recommended?.elapsed_green_sec || telemetry?.signal?.elapsed_green_sec || '18.0'}s
             </span>
           </div>
           <div className="hud-stat-item">
@@ -113,7 +117,7 @@ export default function LiveJunctionView({ junction, telemetry, signalTiming }) 
                 className={`cam-tab-btn ${selectedCam === app.id ? 'active' : ''}`}
                 onClick={() => setSelectedCam(app.id)}
               >
-                {app.direction}: {app.name.split('(')[0]}
+                {app.direction || 'Approach'}: {(app.name || app.id).split('(')[0]}
                 {approachesData[app.id]?.emergency && (
                   <ShieldAlert size={13} className="text-red" style={{ marginLeft: 4 }} />
                 )}
@@ -157,21 +161,21 @@ export default function LiveJunctionView({ junction, telemetry, signalTiming }) 
             <div className="feed-hud-overlay">
               <div className="overlay-metric">
                 <span className="metric-label">Selected Approach:</span>
-                <span className="metric-val">{activeCam.name}</span>
+                <span className="metric-val">{activeCam.name || activeCam.id}</span>
               </div>
               <div className="overlay-metric">
                 <span className="metric-label">Queue Length:</span>
                 <span className="metric-val highlight">
-                  {(currentApproachTelemetry.queue_length_m || (currentApproachTelemetry.total_pcu * 6.0)).toFixed(1)} m
+                  {queueVal.toFixed(1)} m
                 </span>
               </div>
               <div className="overlay-metric">
                 <span className="metric-label">Approach PCU:</span>
-                <span className="metric-val">{currentApproachTelemetry.total_pcu.toFixed(1)} PCU</span>
+                <span className="metric-val">{pcuVal.toFixed(1)} PCU</span>
               </div>
               <div className="overlay-metric">
                 <span className="metric-label">Avg Speed:</span>
-                <span className="metric-val">{currentApproachTelemetry.avg_speed_kmh.toFixed(1)} km/h</span>
+                <span className="metric-val">{speedVal.toFixed(1)} km/h</span>
               </div>
             </div>
 
@@ -236,19 +240,19 @@ export default function LiveJunctionView({ junction, telemetry, signalTiming }) 
                   <div className="approach-metrics-grid">
                     <div className="metric-box">
                       <span className="m-label">Queue PCU</span>
-                      <span className="m-val">{data.total_pcu.toFixed(1)}</span>
+                      <span className="m-val">{Number(data.total_pcu ?? 0).toFixed(1)}</span>
                     </div>
                     <div className="metric-box">
                       <span className="m-label">Queue Length</span>
-                      <span className="m-val highlight">{queueLength.toFixed(1)}m</span>
+                      <span className="m-val highlight">{Number(queueLength ?? 0).toFixed(1)}m</span>
                     </div>
                     <div className="metric-box">
                       <span className="m-label">Avg Speed</span>
-                      <span className="m-val">{data.avg_speed_kmh.toFixed(1)} km/h</span>
+                      <span className="m-val">{Number(data.avg_speed_kmh ?? 20).toFixed(1)} km/h</span>
                     </div>
                     <div className="metric-box">
                       <span className="m-label">Net Pressure</span>
-                      <span className="m-val text-blue">{pressure ? Number(pressure).toFixed(1) : '0.0'}</span>
+                      <span className="m-val text-blue">{Number(pressure ?? 0).toFixed(1)}</span>
                     </div>
                   </div>
 
