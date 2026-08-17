@@ -1348,3 +1348,21 @@ body {
 .text-red { color: var(--color-red); }
 .text-blue { color: var(--color-blue); }
 .text-muted { color: var(--text-muted); }
+
+/* Leaflet Map Custom Styling */
+.map-tooltip {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+  border: 1px solid #334155 !important;
+  border-radius: 6px !important;
+  font-size: 11px !important;
+  padding: 6px 10px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6) !important;
+}
+.map-tooltip::before {
+  border-top-color: #334155 !important;
+}
+.leaflet-container {
+  background: #070d18 !important;
+  font-family: inherit !important;
+}
