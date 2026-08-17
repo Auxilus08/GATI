@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { fetchForecast, fetchIncidents, fetchLiveRisk } from '../services/api';
 import AITrafficPredictionWidget from './AITrafficPredictionWidget';
+import AccidentBlackspotAndRiskConsole from './AccidentBlackspotAndRiskConsole';
 
 const DEFAULT_FORECASTS = {
   APP_NORTH: {
@@ -161,6 +162,9 @@ export default function PredictiveRiskView({ junction }) {
     <div className="panel-container">
       {/* ─── AI Traffic Prediction Widget (Hourly & Weekly Forecasts) ─── */}
       <AITrafficPredictionWidget junctionId={junctionId} />
+
+      {/* ─── Accident Black-Spot Intelligence & Preventive Interceptions (Proactive Guard) ─── */}
+      <AccidentBlackspotAndRiskConsole junctionId={junctionId} />
 
       {/* ─── Top Row: 2-Column Grid (Forecast Chart & Real-Time Incident Feed) ─── */}
       <div className="grid-2col">

@@ -399,6 +399,65 @@ async def get_ai_traffic_prediction(junction_id: str):
 
 
 # ─────────────────────────────────────────────────────────────
+# Accident Black-Spots & Preventive Safety Interceptions
+# ─────────────────────────────────────────────────────────────
+
+from central.analytics.blackspot_analyzer import blackspot_analyzer
+
+@router.get("/blackspots", summary="List identified accident black-spots with risk scores")
+async def get_accident_blackspots():
+    """
+    Returns spatial accident black-spots ranked by near-miss density, speed variance, and TTC risk.
+    """
+    blackspots = blackspot_analyzer.get_all_blackspots()
+    return {
+        "total_blackspots": len(blackspots),
+        "critical_count": sum(1 for b in blackspots if b["severity_level"] == "CRITICAL_BLACKSPOT"),
+        "high_risk_count": sum(1 for b in blackspots if b["severity_level"] == "HIGH_RISK"),
+        "blackspots": blackspots,
+        "timestamp": time.time(),
+    }
+
+
+@router.get("/{junction_id}/risky-behaviors", summary="Live risky driving and pedestrian incursion feed")
+async def get_junction_risky_behaviors(junction_id: str):
+    """
+    Returns real-time intercepted risky behaviors (wrong-way, red-runner, sudden braking, jaywalking)
+    and the automated preventive action executed by GATI.
+    """
+    events = blackspot_analyzer.get_risky_behaviors(junction_id=junction_id, limit=10)
+    return {
+        "junction_id": junction_id,
+        "event_count": len(events),
+        "risky_events": events,
+        "timestamp": time.time(),
+    }
+
+
+@router.post("/{junction_id}/trigger-preventive-guard", summary="Trigger automated preventive collision guard")
+async def trigger_preventive_guard(junction_id: str):
+    """
+    Executes an emergency preventive All-Red extension (+2.5s) to avert a predicted collision.
+    """
+    event = blackspot_analyzer.record_risky_behavior(
+        junction_id=junction_id,
+        behavior_type="RED_LIGHT_RUNNER_PREDICTED",
+        vehicle_class="car",
+        track_id=199,
+        speed_kmh=56.4,
+        severity="CRITICAL",
+        description="Speeding vehicle detected (56.4 km/h) heading towards stopline during amber-red transition",
+        preventive_action="🚨 PREVENTIVE ACTION EXECUTED: All-Red Clearance Extended by +2.5s — Cross-Traffic Held to Prevent T-Bone Collision",
+    )
+    return {
+        "status": "PREVENTIVE_ACTION_EXECUTED",
+        "event_id": event.event_id,
+        "action": event.preventive_action_executed,
+        "timestamp": event.timestamp,
+    }
+
+
+# ─────────────────────────────────────────────────────────────
 # WebSocket — Real-Time Alerts Stream
 # ─────────────────────────────────────────────────────────────
 

@@ -144,6 +144,28 @@ export async function clearEmergencyCorridor(dispatchId) {
   return res.json();
 }
 
+/* ─── Accident Black-Spots & Preventive Interventions ──────────────── */
+
+export async function fetchAccidentBlackspots() {
+  const res = await fetch(`${API_BASE_URL}/analytics/blackspots`);
+  if (!res.ok) throw new Error('Failed to fetch accident blackspots');
+  return res.json();
+}
+
+export async function fetchRiskyBehaviors(junctionId) {
+  const res = await fetch(`${API_BASE_URL}/analytics/${junctionId}/risky-behaviors`);
+  if (!res.ok) throw new Error(`Failed to fetch risky behaviors for ${junctionId}`);
+  return res.json();
+}
+
+export async function triggerPreventiveGuard(junctionId) {
+  const res = await fetch(`${API_BASE_URL}/analytics/${junctionId}/trigger-preventive-guard`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error(`Failed to trigger preventive collision guard for ${junctionId}`);
+  return res.json();
+}
+
 /* ─── Corridors ─────────────────────────────────────────────────────── */
 
 export async function fetchCorridors() {
