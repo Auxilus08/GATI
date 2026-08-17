@@ -466,7 +466,7 @@ export default function DynamicSplitAndCorridorVisualizer() {
         <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#94a3b8' }}>
           <CheckCircle2 size={14} className="text-green" />
           <span>
-            <strong>Travel-Time Offset Math ($\Delta t = \text{Distance} / \text{Speed}$):</strong> When Sitabuldi discharges 60 PCU, Varieties Sq (450m ahead at 36 km/h) calculates a 45s transit time and turns GREEN at $t=40\text{s}$, eliminating stopline idling!
+            <strong>Travel-Time Offset Math (Δt = Distance / Speed):</strong> When Sitabuldi discharges 60 PCU, Varieties Sq (450m ahead at 36 km/h) calculates a 45s transit time and turns GREEN at t=40s, eliminating stopline idling!
           </span>
         </div>
       </div>

@@ -29,26 +29,78 @@ export default function LiveJunctionView({ junction, telemetry, signalTiming }) 
     lanes: 3,
   };
 
-  const currentApproachTelemetry = approachesData[selectedCam] || {
-    total_pcu: 14.5,
-    queue_length_m: 87.0,
-    avg_speed_kmh: 22.4,
-    vehicle_counts: { two_wheeler: 8, auto_rickshaw: 4, car: 5, bus: 1 },
-    emergency: false,
+  const APPROACH_DEFAULT_TELEMETRY = {
+    APP_NORTH: {
+      total_pcu: 21.5,
+      queue_length_m: 129.0,
+      avg_speed_kmh: 34.2,
+      vehicle_counts: { two_wheeler: 14, auto_rickshaw: 4, car: 9, bus: 2, truck: 0 },
+      emergency: false,
+    },
+    APP_SOUTH: {
+      total_pcu: 18.2,
+      queue_length_m: 109.2,
+      avg_speed_kmh: 29.5,
+      vehicle_counts: { two_wheeler: 11, auto_rickshaw: 3, car: 7, bus: 1, truck: 1 },
+      emergency: false,
+    },
+    APP_EAST: {
+      total_pcu: 26.8,
+      queue_length_m: 160.8,
+      avg_speed_kmh: 16.4,
+      vehicle_counts: { two_wheeler: 18, auto_rickshaw: 12, car: 5, bus: 0, truck: 1 },
+      emergency: false,
+    },
+    APP_WEST: {
+      total_pcu: 8.5,
+      queue_length_m: 51.0,
+      avg_speed_kmh: 28.0,
+      vehicle_counts: { two_wheeler: 9, auto_rickshaw: 2, car: 3, bus: 0, truck: 0 },
+      emergency: false,
+    },
   };
 
+  const currentApproachTelemetry = approachesData[selectedCam] || APPROACH_DEFAULT_TELEMETRY[selectedCam] || APPROACH_DEFAULT_TELEMETRY.APP_NORTH;
   const pcuVal = Number(currentApproachTelemetry.total_pcu ?? 0);
   const queueVal = Number(currentApproachTelemetry.queue_length_m ?? (pcuVal * 6.0));
   const speedVal = Number(currentApproachTelemetry.avg_speed_kmh ?? 20.0);
 
-  // Simulated bounding box tracks matching real Indian traffic classes
-  const simulatedTracks = [
-    { id: 101, class: 'auto_rickshaw', label: '🛺 Auto #101', bbox: [220, 180, 70, 75], speed: 18.4, pcu: 0.8 },
-    { id: 102, class: 'two_wheeler', label: '🏍 2W #102', bbox: [160, 240, 45, 60], speed: 28.2, pcu: 0.5 },
-    { id: 103, class: 'car', label: '🚗 Car #103', bbox: [320, 140, 90, 85], speed: 22.1, pcu: 1.0 },
-    { id: 104, class: 'bus', label: '🚌 Bus #104', bbox: [430, 90, 110, 130], speed: 14.5, pcu: 3.0 },
-    { id: 105, class: 'two_wheeler', label: '🏍 2W #105', bbox: [270, 260, 40, 55], speed: 24.0, pcu: 0.5 },
-  ];
+  // Simulated bounding box tracks uniquely tailored to each Indian road approach & direction
+  const APPROACH_SPECIFIC_TRACKS = {
+    APP_NORTH: [
+      { id: 101, class: 'bus', label: '🚌 Volvo City Bus #101', bbox: [120, 40, 110, 140], speed: 32.4, pcu: 3.0 },
+      { id: 102, class: 'car', label: '🚗 White Sedan #102', bbox: [250, 160, 85, 80], speed: 38.5, pcu: 1.0 },
+      { id: 103, class: 'car', label: '🚙 SUV #103', bbox: [360, 90, 90, 85], speed: 35.0, pcu: 1.0 },
+      { id: 104, class: 'two_wheeler', label: '🏍 Pulsar #104', bbox: [170, 230, 40, 55], speed: 42.1, pcu: 0.5 },
+      { id: 105, class: 'two_wheeler', label: '🏍 Activa #105', bbox: [290, 250, 38, 50], speed: 36.8, pcu: 0.5 },
+      { id: 106, class: 'auto_rickshaw', label: '🛺 CNG Auto #106', bbox: [410, 210, 65, 70], speed: 26.2, pcu: 0.8 },
+    ],
+    APP_SOUTH: [
+      { id: 201, class: 'truck', label: '🚛 Logistics Truck #201', bbox: [330, 30, 115, 150], speed: 24.5, pcu: 3.0 },
+      { id: 202, class: 'bus', label: '🚌 State Transport Bus #202', bbox: [130, 80, 105, 135], speed: 28.0, pcu: 3.0 },
+      { id: 203, class: 'car', label: '🚗 Red Hatchback #203', bbox: [250, 170, 80, 75], speed: 34.2, pcu: 1.0 },
+      { id: 204, class: 'two_wheeler', label: '🏍 Splendor #204', bbox: [180, 240, 40, 55], speed: 31.0, pcu: 0.5 },
+      { id: 205, class: 'auto_rickshaw', label: '🛺 Auto #205', bbox: [380, 220, 68, 72], speed: 22.4, pcu: 0.8 },
+    ],
+    APP_EAST: [
+      { id: 301, class: 'auto_rickshaw', label: '🛺 Green Auto #301', bbox: [160, 140, 65, 70], speed: 16.2, pcu: 0.8 },
+      { id: 302, class: 'auto_rickshaw', label: '🛺 Yellow Auto #302', bbox: [250, 190, 65, 70], speed: 14.8, pcu: 0.8 },
+      { id: 303, class: 'auto_rickshaw', label: '🛺 Shared Auto #303', bbox: [350, 110, 68, 72], speed: 18.0, pcu: 0.8 },
+      { id: 304, class: 'car', label: '🚕 Yellow Taxi #304', bbox: [180, 50, 80, 75], speed: 19.5, pcu: 1.0 },
+      { id: 305, class: 'two_wheeler', label: '🛵 Delivery 2W #305', bbox: [320, 230, 42, 55], speed: 22.0, pcu: 0.5 },
+      { id: 306, class: 'truck', label: '🚚 Mini-Tempo #306', bbox: [260, 20, 90, 100], speed: 15.0, pcu: 1.5 },
+    ],
+    APP_WEST: [
+      { id: 401, class: 'two_wheeler', label: '🏍 Enfield #401', bbox: [190, 210, 45, 60], speed: 29.5, pcu: 0.5 },
+      { id: 402, class: 'two_wheeler', label: '🛵 Scooter #402', bbox: [260, 240, 40, 50], speed: 26.0, pcu: 0.5 },
+      { id: 403, class: 'two_wheeler', label: '🏍 Commuter 2W #403', bbox: [340, 200, 42, 55], speed: 28.4, pcu: 0.5 },
+      { id: 404, class: 'car', label: '🚗 Electric Car #404', bbox: [210, 90, 85, 80], speed: 31.2, pcu: 1.0 },
+      { id: 405, class: 'auto_rickshaw', label: '🛺 Auto #405', bbox: [320, 130, 65, 70], speed: 21.0, pcu: 0.8 },
+    ],
+  };
+
+  const simulatedTracks = APPROACH_SPECIFIC_TRACKS[selectedCam] || APPROACH_SPECIFIC_TRACKS.APP_NORTH;
+
 
   return (
     <div className="panel-container">
