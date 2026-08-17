@@ -37,14 +37,18 @@ class ErrorBoundary extends React.Component {
             border: '1px solid #334866',
             borderRadius: '12px',
             padding: '32px',
-            maxWidth: '540px',
-            boxShadow: '0 8px 32px rgba(0,0,0,0.5)'
+            maxWidth: '680px',
+            boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+            textAlign: 'left',
           }}>
-            <div style={{ fontSize: '28px', fontWeight: 'bold', color: '#38bdf8', marginBottom: '12px' }}>
+            <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#38bdf8', marginBottom: '12px' }}>
               GATI Control Console
             </div>
-            <div style={{ fontSize: '14px', color: '#94a3b8', marginBottom: '20px' }}>
-              Live Telemetry Receiver Initializing. Click below to reload console.
+            <div style={{ fontSize: '13px', color: '#ef4444', marginBottom: '14px', fontFamily: 'monospace', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '10px', borderRadius: '6px' }}>
+              {this.state.error ? this.state.error.toString() : 'Initializing telemetry...'}
+            </div>
+            <div style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '20px' }}>
+              If this error persists, click below to reset console state.
             </div>
             <button
               onClick={() => window.location.reload()}
