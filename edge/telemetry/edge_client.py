@@ -68,6 +68,23 @@ class EdgeTelemetryClient:
             self._buffer_packet(packet)
             return False
 
+    def send_safety_event(self, event_dict: Dict[str, Any]) -> bool:
+        """
+        Transmits high-priority safety event packet to central ICCC API.
+        Queues locally in buffer if network is unavailable.
+        """
+        endpoint = f"{self.central_url}/api/v1/safety/events"
+        try:
+            resp = requests.post(endpoint, json=event_dict, timeout=3.0)
+            if resp.status_code in (200, 201):
+                return True
+            else:
+                self._buffer_packet({"_is_safety_event": True, **event_dict})
+                return False
+        except Exception:
+            self._buffer_packet({"_is_safety_event": True, **event_dict})
+            return False
+
     def _buffer_packet(self, packet: Dict[str, Any]):
         if len(self.buffer) < self.max_buffer_size:
             self.buffer.append(packet)

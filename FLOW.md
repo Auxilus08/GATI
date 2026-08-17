@@ -20,16 +20,17 @@ GATI (Governance-ready AI Traffic Intelligence) is an edge-first, retrofit-ready
 |  [Edge Vision Worker (YOLO / MobileNet quantized)]                     |
 |           | -> Detections (Class, BBoxes, Direction, Tracks)           |
 |           v                                                            |
-|  [Queue & PCU Engine + Priority Detector (Ambulance/VIP)]              |
+|  [Queue & PCU Engine]                                                  |
 |           |                                                            |
-|           +-------------------------------+                            |
+|           +-------------------------------+----------------------------+
 |           |                               |                            |
-|           v                               v                            |
-|  [Local Adaptive Signal]         [Edge Telemetry Client]               |
-|  (Max-Pressure / Actuation)      (Batched JSON Metrics / Alerts)       |
-|           |                               |                            |
-|           v (Relay/NTCIP)                 v (HTTPS/WebSocket)          |
-|  [Traffic Light Controller]        ~~~ Standard 4G/WAN Uplink ~~~      |
+|           v                               v                            v
+|  [Local Adaptive Signal]         [Edge Event Detector]        [Edge Telemetry Client]
+|  (Max-Pressure / Actuation)      (Accident/Ambulance Debounce)(Batched JSON Metrics)
+|           |                      - Snapshot (<=20KB, Accident)         |
+|           v (Relay/NTCIP)                 |                            |
+|  [Traffic Light Controller]               v (POST /api/v1/safety/events)
+|                                    ~~~ Standard 4G/WAN Uplink ~~~      |
 +===========================================|============================+
                                             |
 +===========================================v============================+
@@ -37,9 +38,12 @@ GATI (Governance-ready AI Traffic Intelligence) is an edge-first, retrofit-ready
 |              central/api/main.py — python -m uvicorn                   |
 |                                                                        |
 |  POST /api/v1/telemetry/report  (edge telemetry ingestion)             |
+|  POST /api/v1/safety/events     (accident/ambulance event ingestion)  |
 |           |                                                            |
 |           v  (in-process pipeline — no external broker needed)         |
 |   MaxPressureController.evaluate_decision()                            |
+|           +---> NearestAuthorityResolver.resolve()                     |
+|           +---> SafetyEventAuditLogger.record()                        |
 |           +---> AnalyticsEngine.process_telemetry_step()               |
 |           +---> JunctionRiskEngine.calculate_risk()                    |
 |           +---> JunctionStateStore.update_snapshot()                   |
@@ -47,6 +51,7 @@ GATI (Governance-ready AI Traffic Intelligence) is an edge-first, retrofit-ready
 |                                                                        |
 |  REST Endpoints (data-serving, no computation):                        |
 |    GET  /api/v1/telemetry/latest[/{junction_id}]                       |
+|    GET  /api/v1/safety/events + POST /safety/events/{id}/acknowledge   |
 |    GET  /api/v1/junctions/[{id}/state|signal-timing]                   |
 |    POST /api/v1/junctions/{id}/override   (LOCK/RELEASE + audit)       |
 |    GET  /api/v1/analytics/{id}/forecast|incidents|risk|comparison      |

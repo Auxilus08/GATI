@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Navbar from './components/Navbar';
 import CityTrafficMap from './components/CityTrafficMap';
+import SafetyAlertToastAndPanel from './components/SafetyAlertToastAndPanel';
 import LiveJunctionView from './components/LiveJunctionView';
 import CommandView from './components/CommandView';
 import PredictiveRiskView from './components/PredictiveRiskView';
@@ -178,6 +179,12 @@ export default function App() {
           junctions={junctions}
           selectedJunctionId={selectedJunctionId}
           onSelectJunction={(jid) => setSelectedJunctionId(jid)}
+        />
+
+        {/* Real-Time Safety & Incident Alert Toast / Dispatch Console */}
+        <SafetyAlertToastAndPanel
+          junctionId={selectedJunctionId}
+          onEventAction={() => loadJunctionData(selectedJunctionId)}
         />
 
         {/* Panel 1: Live Junction View */}

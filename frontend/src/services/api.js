@@ -166,6 +166,41 @@ export async function triggerPreventiveGuard(junctionId) {
   return res.json();
 }
 
+/* ─── Safety Events & Nearest Authority Dispatch ───────────────────── */
+
+export async function fetchSafetyEvents(junctionId = null, limit = 20) {
+  const url = junctionId
+    ? `${API_BASE_URL}/safety/events?junction_id=${junctionId}&limit=${limit}`
+    : `${API_BASE_URL}/safety/events?limit=${limit}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Failed to fetch safety events');
+  return res.json();
+}
+
+export async function reportSafetyEvent(payload) {
+  const res = await fetch(`${API_BASE_URL}/safety/events`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) throw new Error('Failed to report safety event');
+  return res.json();
+}
+
+export async function acknowledgeSafetyEvent(eventId, { operatorId, dispatchAction, notes }) {
+  const res = await fetch(`${API_BASE_URL}/safety/events/${eventId}/acknowledge`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      operator_id: operatorId || 'ICCC_OPERATOR_CHIEF',
+      dispatch_action: dispatchAction || 'DISPATCH_NEAREST_PATROL_AND_AMBULANCE',
+      notes: notes || '1-Click Dispatch from ICCC Dashboard',
+    }),
+  });
+  if (!res.ok) throw new Error(`Failed to acknowledge event ${eventId}`);
+  return res.json();
+}
+
 /* ─── Corridors ─────────────────────────────────────────────────────── */
 
 export async function fetchCorridors() {
