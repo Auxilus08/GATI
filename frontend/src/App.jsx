@@ -1,93 +1,151 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Navbar from './components/Navbar';
-import MetricsBar from './components/MetricsBar';
-import JunctionCard from './components/JunctionCard';
-import CorridorView from './components/CorridorView';
-import EmergencyModal from './components/EmergencyModal';
-import { fetchCitySummary, fetchJunctionsList, fetchLatestTelemetry } from './services/api';
+import LiveJunctionView from './components/LiveJunctionView';
+import CommandView from './components/CommandView';
+import PredictiveRiskView from './components/PredictiveRiskView';
+import {
+  fetchJunctionsList,
+  fetchJunctionDetail,
+  fetchSignalTiming,
+  fetchComparison,
+  fetchLatestTelemetry,
+  createTelemetryWebSocket,
+  createAlertsWebSocket,
+} from './services/api';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('live');
-  const [summary, setSummary] = useState(null);
+  const [activeTab, setActiveTab] = useState('live'); // 'live' | 'command' | 'predictive'
   const [junctions, setJunctions] = useState([]);
-  const [telemetry, setTelemetry] = useState({});
-  const [selectedJunctionForOverride, setSelectedJunctionForOverride] = useState(null);
+  const [selectedJunctionId, setSelectedJunctionId] = useState('NGP_J01_SITABULDI');
+  const [junctionDetail, setJunctionDetail] = useState(null);
+  const [telemetry, setTelemetry] = useState(null);
+  const [signalTiming, setSignalTiming] = useState(null);
+  const [comparisonData, setComparisonData] = useState(null);
+  const [isConnected, setIsConnected] = useState(false);
 
-  // Load initial data
-  const loadData = async () => {
+  // 1. Load available junctions on mount
+  useEffect(() => {
+    fetchJunctionsList()
+      .then((list) => {
+        if (list && list.length > 0) {
+          setJunctions(list);
+          setSelectedJunctionId(list[0].junction_id);
+        }
+      })
+      .catch((err) => console.warn('Failed to load junctions list', err));
+  }, []);
+
+  // 2. Load detail, signal timing, and telemetry for the selected junction
+  const loadJunctionData = useCallback(async (jid) => {
+    if (!jid) return;
     try {
-      const [sumRes, juncRes, telRes] = await Promise.all([
-        fetchCitySummary().catch(() => null),
-        fetchJunctionsList().catch(() => []),
+      const [detailRes, timingRes, allTelRes, compRes] = await Promise.all([
+        fetchJunctionDetail(jid).catch(() => null),
+        fetchSignalTiming(jid).catch(() => null),
         fetchLatestTelemetry().catch(() => ({})),
+        fetchComparison(jid).catch(() => null),
       ]);
-      if (sumRes) setSummary(sumRes);
-      if (juncRes) setJunctions(juncRes);
-      if (telRes) setTelemetry(telRes);
+
+      if (detailRes?.config) setJunctionDetail(detailRes.config);
+      if (timingRes) setSignalTiming(timingRes);
+      if (allTelRes && allTelRes[jid]) setTelemetry(allTelRes[jid]);
+      if (compRes) setComparisonData(compRes);
+      setIsConnected(true);
     } catch (e) {
-      console.error("Failed to load initial data", e);
+      console.error('Error fetching junction data', e);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    loadData();
+    loadJunctionData(selectedJunctionId);
+  }, [selectedJunctionId, loadJunctionData]);
 
-    // Setup live polling fallback / WebSocket
-    const interval = setInterval(async () => {
-      try {
-        const [sumRes, telRes] = await Promise.all([
-          fetchCitySummary().catch(() => null),
-          fetchLatestTelemetry().catch(() => ({})),
-        ]);
-        if (sumRes) setSummary(sumRes);
-        if (telRes) setTelemetry(telRes);
-      } catch (err) {
-        console.error("Polling error", err);
+  // 3. Setup WebSocket streams for real-time live push & fallback polling
+  useEffect(() => {
+    // Connect to global or per-junction telemetry stream
+    const wsClient = createTelemetryWebSocket((msg) => {
+      setIsConnected(true);
+      if (msg.type === 'TELEMETRY_UPDATE' && msg.junction_id === selectedJunctionId) {
+        setTelemetry((prev) => ({
+          ...prev,
+          timestamp: msg.timestamp,
+          signal: msg.signal,
+          approaches: msg.approaches,
+          risk: msg.risk,
+          analytics: msg.analytics,
+          emergency_active: msg.emergency_active,
+        }));
+        if (msg.signal) {
+          setSignalTiming((prev) => ({
+            ...prev,
+            recommended: {
+              ...prev?.recommended,
+              phase_id: msg.signal.recommended_phase_id,
+              decision_reason: msg.signal.decision_reason,
+              elapsed_green_sec: msg.signal.elapsed_green_sec,
+              pressures: msg.signal.pressures,
+            },
+            current: {
+              ...prev?.current,
+              phase_id: msg.signal.current_phase_id,
+            },
+            override_active: msg.signal.override_active,
+          }));
+        }
       }
+    }, selectedJunctionId);
+
+    // Fallback polling every 3 seconds to guarantee freshness
+    const pollInterval = setInterval(() => {
+      loadJunctionData(selectedJunctionId);
     }, 3000);
 
-    return () => clearInterval(interval);
-  }, []);
+    return () => {
+      wsClient.close();
+      clearInterval(pollInterval);
+    };
+  }, [selectedJunctionId, loadJunctionData]);
 
   return (
     <div className="app-container">
-      <Navbar activeTab={activeTab} setActiveTab={setActiveTab} />
+      {/* Top Navigation Bar with 3-Panel Tabs & Dynamic Junction Switcher */}
+      <Navbar
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        junctions={junctions}
+        selectedJunctionId={selectedJunctionId}
+        onSelectJunction={(jid) => setSelectedJunctionId(jid)}
+        isConnected={isConnected}
+      />
 
+      {/* Main 3-Panel Work Area */}
       <main className="main-content">
-        <MetricsBar summary={summary} />
+        {/* Panel 1: Live Junction View */}
+        {activeTab === 'live' && (
+          <LiveJunctionView
+            junction={junctionDetail}
+            telemetry={telemetry}
+            signalTiming={signalTiming}
+          />
+        )}
 
-        {activeTab === 'live' ? (
-          <div>
-            <div className="section-header">
-              <h2 className="section-title">City Signalized Junctions (Nagpur Pilot)</h2>
-              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                Auto-refreshing every 3s via Edge Telemetry
-              </span>
-            </div>
+        {/* Panel 2: Command View */}
+        {activeTab === 'command' && (
+          <CommandView
+            junction={junctionDetail}
+            signalTiming={signalTiming}
+            comparisonData={comparisonData}
+            onRefresh={() => loadJunctionData(selectedJunctionId)}
+          />
+        )}
 
-            <div className="junction-grid">
-              {junctions.map((j) => (
-                <JunctionCard
-                  key={j.junction_id}
-                  junction={j}
-                  telemetry={telemetry[j.junction_id]}
-                  onOpenEmergency={(junc) => setSelectedJunctionForOverride(junc)}
-                />
-              ))}
-            </div>
-          </div>
-        ) : (
-          <CorridorView />
+        {/* Panel 3: Predictive / Risk View */}
+        {activeTab === 'predictive' && (
+          <PredictiveRiskView
+            junction={junctionDetail}
+          />
         )}
       </main>
-
-      {selectedJunctionForOverride && (
-        <EmergencyModal
-          junction={selectedJunctionForOverride}
-          onClose={() => setSelectedJunctionForOverride(null)}
-          onComplete={loadData}
-        />
-      )}
     </div>
   );
 }

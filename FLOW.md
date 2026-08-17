@@ -185,11 +185,16 @@ Camera (RTSP)
     ├── vite.config.js
     ├── index.html
     └── src/
-        ├── App.jsx
-        ├── main.jsx
-        ├── index.css
-        ├── components/               # Navbar, MetricsBar, JunctionCard, CorridorView, EmergencyModal
-        └── services/api.js           # REST client layer
+        ├── App.jsx                   # Root application container & WebSocket state coordinator
+        ├── main.jsx                  # React 18 DOM mount
+        ├── index.css                 # High-contrast control-room dark styling system
+        ├── components/
+        │   ├── Navbar.jsx            # Top bar, 3-panel tabs, dynamic junction switcher, status pill
+        │   ├── LiveJunctionView.jsx  # Panel 1: CCTV detection overlay, approach counts, signal phase HUD
+        │   ├── CommandView.jsx       # Panel 2: Headline before/after KPIs, signal timing, override control & audit
+        │   └── PredictiveRiskView.jsx# Panel 3: Forecast chart, surrogate risk metrics, incident alerts, coming soon badge
+        └── services/
+            └── api.js                # Direct REST client & WebSocket streaming service layer
 ```
 
 ### Key API Schemas & Data Shapes
@@ -467,4 +472,9 @@ Camera (RTSP)
 - [x] Edge telemetry client with offline buffer (`edge/telemetry/edge_client.py`).
 - [x] Corridor Green Wave Progression Coordinator (`central/coordinator/green_wave.py`).
 - [x] Nagpur Multi-Junction Traffic Simulator (`simulation/city_simulator.py`).
-- [x] React Vite Operator Dashboard (`frontend/`).
+- [x] **React Operator Dashboard (3-Panel Control-Room Single Page App)** (`frontend/`):
+  - [x] **Panel 1: Live Junction View** (`frontend/src/components/LiveJunctionView.jsx`) — CCTV video viewport with YOLOv8/ByteTrack bounding box overlays, lane-free approach queue metrics, and active signal phase HUD.
+  - [x] **Panel 2: Command View** (`frontend/src/components/CommandView.jsx`) — Headline before/after KPIs in view header (30.8% wait time reduction, 31.9% queue shrink, fuel/CO2 savings), current vs. recommended Max-Pressure timing, and police operator manual phase lock/release wired to `POST /override` with JSONL audit trail feed.
+  - [x] **Panel 3: Predictive / Risk View** (`frontend/src/components/PredictiveRiskView.jsx`) — Bespoke SVG short-horizon (10-30 min) congestion forecast chart, live per-approach surrogate safety risk indicators (speed variance, hard braking, near-misses), real-time stalled-vehicle alert feed, and explicit "Coming Soon" badge for multi-year police FIR accident GIS records.
+  - [x] Resilient dual-channel networking (`frontend/src/services/api.js`) with WebSocket streaming and 3s HTTP polling fallback.
+

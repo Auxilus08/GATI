@@ -1,33 +1,88 @@
 import React from 'react';
+import {
+  Activity,
+  Sliders,
+  TrendingUp,
+  Radio,
+  MapPin,
+  ShieldCheck,
+  ChevronDown,
+} from 'lucide-react';
 
-export default function Navbar({ activeTab, setActiveTab }) {
+export default function Navbar({
+  activeTab,
+  setActiveTab,
+  junctions,
+  selectedJunctionId,
+  onSelectJunction,
+  isConnected,
+}) {
   return (
     <header className="navbar">
-      <div className="brand-group">
-        <span className="brand-logo-badge">GATI</span>
-        <div>
-          <span className="brand-title">Governance-ready AI Traffic Intelligence</span>
-          <span className="brand-sub">Nagpur Smart City ICCC</span>
+      {/* Brand & City Identification */}
+      <div className="nav-left">
+        <div className="brand-badge">
+          <span className="brand-name">GATI</span>
+          <span className="brand-version">v0.2</span>
+        </div>
+        <div className="brand-info">
+          <div className="brand-headline">Traffic Intelligence Platform</div>
+          <div className="brand-subtext">
+            <MapPin size={12} /> Nagpur Smart City ICCC Console
+          </div>
         </div>
       </div>
-      <div className="nav-status">
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button
-            className={`btn ${activeTab === 'live' ? 'btn-primary' : 'btn-outline'}`}
-            onClick={() => setActiveTab('live')}
+
+      {/* 3-Panel View Switcher Tabs (Strictly 3 Panels as requested) */}
+      <nav className="nav-tabs">
+        <button
+          className={`nav-tab-btn ${activeTab === 'live' ? 'active' : ''}`}
+          onClick={() => setActiveTab('live')}
+        >
+          <Activity size={16} />
+          <span>1. Live Junction View</span>
+        </button>
+
+        <button
+          className={`nav-tab-btn ${activeTab === 'command' ? 'active' : ''}`}
+          onClick={() => setActiveTab('command')}
+        >
+          <Sliders size={16} />
+          <span>2. Command View</span>
+        </button>
+
+        <button
+          className={`nav-tab-btn ${activeTab === 'predictive' ? 'active' : ''}`}
+          onClick={() => setActiveTab('predictive')}
+        >
+          <TrendingUp size={16} />
+          <span>3. Predictive / Risk View</span>
+        </button>
+      </nav>
+
+      {/* Junction Selector Dropdown & Live Connection Status */}
+      <div className="nav-right">
+        {/* Dynamic Junction Selector */}
+        <div className="junction-select-wrapper">
+          <select
+            className="nav-junction-select"
+            value={selectedJunctionId}
+            onChange={(e) => onSelectJunction(e.target.value)}
           >
-            Live Junction Grid
-          </button>
-          <button
-            className={`btn ${activeTab === 'corridor' ? 'btn-primary' : 'btn-outline'}`}
-            onClick={() => setActiveTab('corridor')}
-          >
-            Corridor Green Wave
-          </button>
+            {junctions.map((j) => (
+              <option key={j.junction_id} value={j.junction_id}>
+                {j.name} ({j.junction_id})
+              </option>
+            ))}
+          </select>
         </div>
-        <div className="status-indicator">
-          <span className="status-dot"></span>
-          <span>Central Ingestion: Online</span>
+
+        {/* Live Network Health Status */}
+        <div className="status-pill">
+          <span className={`pulse-indicator ${isConnected ? 'online' : 'reconnecting'}`} />
+          <span className="status-text">
+            {isConnected ? 'LIVE TELEMETRY' : 'CONNECTING...'}
+          </span>
         </div>
       </div>
     </header>

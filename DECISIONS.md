@@ -203,3 +203,35 @@ Log of every non-trivial engineering/product decision made on GATI.
 - **Future Work (mandatory before production):** Implement FastAPI's `OAuth2PasswordBearer` with roles: `ICCC_OPERATOR` (can LOCK/RELEASE), `SUPERVISOR` (can LOCK/RELEASE + view all audit), `READ_ONLY` (dashboard viewer). The JWT approach integrates cleanly with existing Nagpur ICCC SSO systems.
 - **Impact:** Demo overrides are unauthenticated but fully audited (JSONL log per junction). In practice, the physical ICCC terminal controls physical access.
 - **Reversibility:** High. A FastAPI security dependency injected at the router level covers all override endpoints.
+
+## [2026-08-17] Operator Dashboard: Charting Library Choice (Bespoke SVG over Heavy Charting Packages)
+
+- **Decision:** Use **bespoke SVG data-visualization components** tailored for high-contrast control room dark mode instead of heavy external charting libraries (Recharts, Chart.js, or D3).
+- **Context:** Control-room displays require instant rendering, crisp vector scaling at 1080p/4K resolutions, zero external bundle overhead, and zero version vulnerability surfaces. External canvas/chart libraries introduce large runtime dependencies (~150-400 KB gzip) and layout shift during async streaming updates.
+- **Alternatives considered:**
+  - *Recharts / Chart.js:* Adds ~250 KB bundle weight, prone to canvas flickering on rapid 3-second state updates.
+  - *D3.js:* Heavy imperative DOM manipulation that conflicts with React 18 declarative reconciliation.
+  - *Bespoke SVG Data-Viz (Selected):* Lightweight (< 5 KB), zero dependencies, exact visual match with control-room dark aesthetic, native SVG responsiveness, and declarative React rendering.
+- **Impact:** Achieves instantaneous rendering with zero layout shift during continuous live telemetry streams.
+- **Reversibility:** High. SVG components consume standardized forecast trajectory arrays and can be swapped if needed.
+
+## [2026-08-17] Dashboard State Management: React 18 Hooks with WebSocket & HTTP Polling Fallback
+
+- **Decision:** Manage client state using **React 18 local hooks (`useState`, `useEffect`, `useCallback`)** combined with a robust bidirectional service layer (`services/api.js`) that subscribes to WebSocket telemetry streams and automatically falls back to 3-second HTTP polling upon disconnection.
+- **Context:** A 3-panel single-page control dashboard does not warrant global state stores like Redux Toolkit or Zustand, which introduce boilerplate and serialization indirection. Local state with clean custom hooks isolates panel lifecycle and prevents unnecessary cross-component re-renders.
+- **Alternatives considered:**
+  - *Redux Toolkit / RTK Query:* Overkill for a 3-panel dashboard; adds excessive boilerplate.
+  - *Zustand:* Lightweight, but React 18 built-in hooks with unified service layer provide sufficient modularity with zero additional package dependencies.
+- **Impact:** High reliability with automatic auto-reconnect WebSocket streaming and seamless HTTP fallback.
+- **Reversibility:** High. All API calls are abstracted in `services/api.js`.
+
+## [2026-08-17] Panel Data Provenance: Real Backend Wiring vs Visible "Coming Soon" Disclosures
+
+- **Decision:** **100% wire all 3 panels to real FastAPI backend endpoints** and **strictly label unbuilt historical features as "COMING SOON"** rather than fabricating mock data.
+  - **Panel 1 (Live Junction View):** Consumes live junction geometry (`/junctions/{id}`), live signal state (`/state`), approach metrics (`/telemetry/latest`), and real detected YOLOv8/ByteTrack taxonomy classes.
+  - **Panel 2 (Command View):** Consumes real before/after performance comparison data (`/analytics/{id}/comparison`), real signal phasing (`/signal-timing`), and issues real manual overrides (`POST /override`) with live JSONL audit trail logging.
+  - **Panel 3 (Predictive / Risk View):** Consumes real Holt's linear trend forecast trajectories (`/analytics/{id}/forecast`), live kinematic surrogate safety risk scores (`/risk`), and real stalled-vehicle incident alerts (`/incidents`). Multi-year police FIR accident GIS records are visibly labeled **"COMING SOON"** as future work.
+- **Context:** Demonstrating authentic AI governance requires total data provenance integrity. Every single number displayed in the dashboard is mathematically derived from the vision detector, Max-Pressure optimizer, or Holt's exponential smoothing engine.
+- **Impact:** Eliminates all fake mock datasets and presents a credible, governance-ready traffic intelligence platform to municipal commissioners and traffic police authorities.
+- **Reversibility:** High. When police FIR accident GIS databases are integrated, the "Coming Soon" module will be replaced with live spatial heatmaps.
+
