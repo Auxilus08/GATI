@@ -109,6 +109,41 @@ export async function fetchAITrafficPrediction(junctionId) {
   return res.json();
 }
 
+/* ─── Emergency Vehicle Preemption (EVP) ───────────────────────────── */
+
+export async function fetchEmergencyRoutes() {
+  const res = await fetch(`${API_BASE_URL}/emergency/routes`);
+  if (!res.ok) throw new Error('Failed to fetch emergency routes');
+  return res.json();
+}
+
+export async function dispatchEmergencyCorridor(data) {
+  const res = await fetch(`${API_BASE_URL}/emergency/dispatch`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to dispatch emergency corridor');
+  }
+  return res.json();
+}
+
+export async function fetchActiveEmergencies() {
+  const res = await fetch(`${API_BASE_URL}/emergency/active`);
+  if (!res.ok) throw new Error('Failed to fetch active emergencies');
+  return res.json();
+}
+
+export async function clearEmergencyCorridor(dispatchId) {
+  const res = await fetch(`${API_BASE_URL}/emergency/clear/${dispatchId}`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error(`Failed to clear emergency dispatch ${dispatchId}`);
+  return res.json();
+}
+
 /* ─── Corridors ─────────────────────────────────────────────────────── */
 
 export async function fetchCorridors() {

@@ -12,7 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from config.settings import load_all_junction_configs, load_global_settings
 from central.api.state_store import junction_store
-from central.api.routers import telemetry, junctions, corridor, analytics, field_override
+from central.api.routers import telemetry, junctions, corridor, analytics, field_override, emergency
 
 # ─────────────────────────────────────────────────────────────
 # Application lifecycle
@@ -71,6 +71,7 @@ app.include_router(junctions.router, prefix="/api/v1")
 app.include_router(corridor.router, prefix="/api/v1")
 app.include_router(analytics.router, prefix="/api/v1")
 app.include_router(field_override.router, prefix="/api/v1")
+app.include_router(emergency.router, prefix="/api/v1")
 
 
 # ─────────────────────────────────────────────────────────────

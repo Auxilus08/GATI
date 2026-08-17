@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { issueOverride, fetchOverrideStatus, fetchOverrideAudit, executeFieldQuickAction } from '../services/api';
 import DynamicSplitAndCorridorVisualizer from './DynamicSplitAndCorridorVisualizer';
+import EmergencyCorridorConsole from './EmergencyCorridorConsole';
 
 export default function CommandView({
   junction,
@@ -167,6 +168,9 @@ export default function CommandView({
 
   return (
     <div className="panel-container">
+      {/* ─── Emergency Vehicle Preemption & Green Corridor Dispatcher ─── */}
+      <EmergencyCorridorConsole onEmergencyTriggered={onRefresh} />
+
       {/* ─── Interactive Dynamic Asymmetric Split & Cascading Corridor Visualizer ─── */}
       <DynamicSplitAndCorridorVisualizer />
 
