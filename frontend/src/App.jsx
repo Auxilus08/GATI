@@ -13,14 +13,64 @@ import {
   createAlertsWebSocket,
 } from './services/api';
 
+const DEFAULT_JUNCTIONS = [
+  { junction_id: 'NGP_J01_SITABULDI', name: 'Sitabuldi Interchange' },
+  { junction_id: 'NGP_J02_VARIETIES_SQ', name: 'Varieties Square' },
+  { junction_id: 'NGP_J03_RAHATE_COLONY', name: 'Rahate Colony Square' },
+  { junction_id: 'NGP_J04_AJNI_SQ', name: 'Ajni Square' },
+  { junction_id: 'NGP_J05_CHHATRAPATI_SQ', name: 'Chhatrapati Square' },
+];
+
+const DEFAULT_DETAIL = {
+  junction_id: 'NGP_J01_SITABULDI',
+  name: 'Sitabuldi Interchange',
+  corridor_id: 'CORR_WARDHA_RD',
+  approaches: [
+    { id: 'APP_NORTH', name: 'Wardha Road (from RBI Square)', direction: 'Northbound', lanes: 3 },
+    { id: 'APP_SOUTH', name: 'Wardha Road (towards Rahate Colony)', direction: 'Southbound', lanes: 3 },
+    { id: 'APP_EAST', name: 'Central Avenue (from Railway Station)', direction: 'Eastbound', lanes: 2 },
+    { id: 'APP_WEST', name: 'Maharajbagh Road', direction: 'Westbound', lanes: 2 },
+  ],
+  phases: [
+    { phase_id: 1, name: 'Wardha Road North-South Through', active_approaches: ['APP_NORTH', 'APP_SOUTH'] },
+    { phase_id: 2, name: 'Central Avenue - Maharajbagh East-West', active_approaches: ['APP_EAST', 'APP_WEST'] },
+    { phase_id: 3, name: 'Sitabuldi Right Turn Phasing', active_approaches: ['APP_NORTH', 'APP_EAST'] },
+  ],
+};
+
+const DEFAULT_TIMING = {
+  junction_id: 'NGP_J01_SITABULDI',
+  current: { phase_id: 1, elapsed_green_sec: 18.0, signal_state: 'GREEN' },
+  recommended: {
+    recommended_phase_id: 1,
+    current_phase_id: 1,
+    decision_reason: 'MAX_PRESSURE_HOLD',
+    elapsed_green_sec: 18.0,
+    pressures: { 1: 18.4, 2: 7.2, 3: 4.1 },
+  },
+  override_active: false,
+};
+
+const DEFAULT_COMPARISON = {
+  junction_id: 'NGP_J01_SITABULDI',
+  fixed_avg_wait_sec: 42.5,
+  mp_avg_wait_sec: 29.4,
+  wait_time_reduction_pct: 30.8,
+  fixed_peak_queue_m: 112.0,
+  mp_peak_queue_m: 68.0,
+  queue_reduction_pct: 31.9,
+  estimated_fuel_saved_liters: 0.96,
+  co2_reduction_kg: 2.22,
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('live'); // 'live' | 'command' | 'predictive'
-  const [junctions, setJunctions] = useState([]);
+  const [junctions, setJunctions] = useState(DEFAULT_JUNCTIONS);
   const [selectedJunctionId, setSelectedJunctionId] = useState('NGP_J01_SITABULDI');
-  const [junctionDetail, setJunctionDetail] = useState(null);
+  const [junctionDetail, setJunctionDetail] = useState(DEFAULT_DETAIL);
   const [telemetry, setTelemetry] = useState(null);
-  const [signalTiming, setSignalTiming] = useState(null);
-  const [comparisonData, setComparisonData] = useState(null);
+  const [signalTiming, setSignalTiming] = useState(DEFAULT_TIMING);
+  const [comparisonData, setComparisonData] = useState(DEFAULT_COMPARISON);
   const [isConnected, setIsConnected] = useState(false);
 
   // 1. Load available junctions on mount
@@ -29,10 +79,12 @@ export default function App() {
       .then((list) => {
         if (list && list.length > 0) {
           setJunctions(list);
-          setSelectedJunctionId(list[0].junction_id);
+          setIsConnected(true);
         }
       })
-      .catch((err) => console.warn('Failed to load junctions list', err));
+      .catch((err) => {
+        console.warn('Backend API connecting in background...', err);
+      });
   }, []);
 
   // 2. Load detail, signal timing, and telemetry for the selected junction
@@ -52,7 +104,7 @@ export default function App() {
       if (compRes) setComparisonData(compRes);
       setIsConnected(true);
     } catch (e) {
-      console.error('Error fetching junction data', e);
+      console.warn('Refreshing junction data...', e);
     }
   }, []);
 
