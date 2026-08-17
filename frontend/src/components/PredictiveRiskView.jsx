@@ -160,7 +160,7 @@ export default function PredictiveRiskView({ junction }) {
   return (
     <div className="panel-container">
       {/* ─── AI Traffic Prediction Widget (Hourly & Weekly Forecasts) ─── */}
-      <AITrafficPredictionWidget />
+      <AITrafficPredictionWidget junctionId={junctionId} />
 
       {/* ─── Top Row: 2-Column Grid (Forecast Chart & Real-Time Incident Feed) ─── */}
       <div className="grid-2col">

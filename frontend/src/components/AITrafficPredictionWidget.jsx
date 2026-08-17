@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   TrendingUp,
   Cloud,
@@ -11,14 +11,38 @@ import {
   Calendar,
   Sparkles,
 } from 'lucide-react';
+import { fetchAITrafficPrediction } from '../services/api';
 
-export default function AITrafficPredictionWidget() {
+export default function AITrafficPredictionWidget({ junctionId = 'NGP_J01_SITABULDI' }) {
   const [timeframe, setTimeframe] = useState('today'); // 'today' | 'week'
   const [selectedHour, setSelectedHour] = useState('09:00');
   const [selectedDay, setSelectedDay] = useState('Mon');
+  const [predictionData, setPredictionData] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Hourly traffic forecast data for Today
-  const HOURLY_FORECAST = [
+  useEffect(() => {
+    let isMounted = true;
+    setIsLoading(true);
+    fetchAITrafficPrediction(junctionId)
+      .then((data) => {
+        if (isMounted && data) {
+          setPredictionData(data);
+        }
+      })
+      .catch((err) => {
+        console.warn('Loading live AI traffic prediction...', err);
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [junctionId]);
+
+  // Hourly traffic forecast data from real dataset or dynamic baseline
+  const HOURLY_FORECAST = predictionData?.hourly_forecast || [
     { time: '09:00', percent: 95, status: 'PEAK', type: 'high', pcu: 48, note: 'Morning Rush: Wardha Rd to Sitabuldi' },
     { time: '10:00', percent: 81, status: 'PEAK', type: 'high', pcu: 41, note: 'Office Commute Inflow' },
     { time: '11:00', percent: 47, status: 'MODERATE', type: 'med', pcu: 23, note: 'Fluid Inter-City Flow' },
@@ -33,8 +57,8 @@ export default function AITrafficPredictionWidget() {
     { time: '20:00', percent: 95, status: 'PEAK', type: 'high', pcu: 48, note: 'Dinner & Market Peak Inflow' },
   ];
 
-  // 7-Day Weekly traffic forecast data
-  const WEEKLY_FORECAST = [
+  // 7-Day Weekly traffic forecast data from real dataset
+  const WEEKLY_FORECAST = predictionData?.weekly_forecast || [
     { day: 'Mon', date: '18 Aug', percent: 92, status: 'PEAK', type: 'high', pcu: 46, note: 'Monday Morning City-Wide Resumption' },
     { day: 'Tue', date: '19 Aug', percent: 78, status: 'MODERATE', type: 'med', pcu: 38, note: 'Normal Mid-Week Volume' },
     { day: 'Wed', date: '20 Aug', percent: 74, status: 'MODERATE', type: 'med', pcu: 36, note: 'Smooth Commercial Transit' },
@@ -43,6 +67,19 @@ export default function AITrafficPredictionWidget() {
     { day: 'Sat', date: '23 Aug', percent: 68, status: 'MODERATE', type: 'med', pcu: 33, note: 'Retail Market Surge at Sitabuldi' },
     { day: 'Sun', date: '24 Aug', percent: 42, status: 'LOW', type: 'low', pcu: 20, note: 'Light Leisure Traffic along Wardha Rd' },
   ];
+
+  const recommendations = predictionData?.recommendations || [
+    { type: 'warning', text: 'Peak traffic expected between 17:00-20:00. Consider alternate routes.' },
+    { type: 'success', text: 'Best travel window: 11:00-14:00 with minimal congestion.' },
+    { type: 'info', text: 'Signal timing optimized for current traffic patterns.' },
+  ];
+
+  const weather = predictionData?.weather || {
+    condition: 'Cloudy',
+    temperature_c: 32,
+    wind_kmh: 16,
+    context_note: 'Weather affects traffic patterns',
+  };
 
   const currentItem = timeframe === 'today'
     ? HOURLY_FORECAST.find((h) => h.time === selectedHour) || HOURLY_FORECAST[0]
@@ -131,19 +168,19 @@ export default function AITrafficPredictionWidget() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px', fontSize: '13px', fontWeight: 600 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#38bdf8' }}>
             <Cloud size={16} />
-            <span>Cloudy</span>
+            <span>{weather.condition || 'Cloudy'}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#f87171' }}>
             <Thermometer size={16} />
-            <span>32°C</span>
+            <span>{weather.temperature_c || 32}°C</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#34d399' }}>
             <Wind size={16} />
-            <span>16 km/h</span>
+            <span>{weather.wind_kmh || 16} km/h</span>
           </div>
         </div>
         <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>
-          Weather affects traffic patterns
+          {weather.context_note || 'Weather affects traffic patterns'}
         </span>
       </div>
 

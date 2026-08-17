@@ -103,6 +103,12 @@ export async function fetchComparison(junctionId) {
   return res.json();
 }
 
+export async function fetchAITrafficPrediction(junctionId) {
+  const res = await fetch(`${API_BASE_URL}/analytics/${junctionId}/ai-prediction`);
+  if (!res.ok) throw new Error(`Failed to fetch AI traffic prediction for ${junctionId}`);
+  return res.json();
+}
+
 /* ─── Corridors ─────────────────────────────────────────────────────── */
 
 export async function fetchCorridors() {
