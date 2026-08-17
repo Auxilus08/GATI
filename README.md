@@ -12,8 +12,6 @@
 ## 🌐 Live Vercel Demo
 
 - **Operator Dashboard:** [`https://gati-vercel-stage.vercel.app`](https://gati-vercel-stage.vercel.app)
-- **API Health:** [`https://gati-vercel-stage.vercel.app/api/v1/health`](https://gati-vercel-stage.vercel.app/api/v1/health)
-- **Seeded Demo Telemetry:** [`https://gati-vercel-stage.vercel.app/api/v1/telemetry/latest`](https://gati-vercel-stage.vercel.app/api/v1/telemetry/latest)
 
 The Vercel deployment runs the FastAPI API as a serverless function and serves the built React dashboard. Because Vercel does not run long-lived background simulator processes, the hosted demo seeds representative Nagpur junction telemetry on first request.
 
