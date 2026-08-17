@@ -33,14 +33,30 @@ GATI (Governance-ready AI Traffic Intelligence) is an edge-first, retrofit-ready
 +===========================================|============================+
                                             |
 +===========================================v============================+
-|                          AGGREGATION LAYER                             |
-|                (City Central Server / ICCC Gateway)                    |
+|                   CENTRAL API LAYER (FastAPI ASGI)                     |
+|              central/api/main.py — python -m uvicorn                   |
 |                                                                        |
-|  [Central Ingestion API (FastAPI / WebSockets)]                        |
+|  POST /api/v1/telemetry/report  (edge telemetry ingestion)             |
 |           |                                                            |
-|           +---> [Corridor Coordinator (Green Wave Sync)]               |
-|           +---> [Congestion & Incident Forecasting (Holt-Winters)]     |
-|           +---> [Time-Series & Incident Store (In-Memory / SQLite)]     |
+|           v  (in-process pipeline — no external broker needed)         |
+|   MaxPressureController.evaluate_decision()                            |
+|           +---> AnalyticsEngine.process_telemetry_step()               |
+|           +---> JunctionRiskEngine.calculate_risk()                    |
+|           +---> JunctionStateStore.update_snapshot()                   |
+|           +---> WebSocketManager.broadcast_junction()                  |
+|                                                                        |
+|  REST Endpoints (data-serving, no computation):                        |
+|    GET  /api/v1/telemetry/latest[/{junction_id}]                       |
+|    GET  /api/v1/junctions/[{id}/state|signal-timing]                   |
+|    POST /api/v1/junctions/{id}/override   (LOCK/RELEASE + audit)       |
+|    GET  /api/v1/analytics/{id}/forecast|incidents|risk|comparison      |
+|    GET  /api/v1/analytics/city-summary                                 |
+|    GET  /api/v1/corridors/  + POST /green-wave/plan                    |
+|                                                                        |
+|  WebSocket Streams:                                                    |
+|    WS  /api/v1/telemetry/ws           (global — all junctions)         |
+|    WS  /api/v1/telemetry/ws/{id}      (per-junction detail)            |
+|    WS  /api/v1/analytics/ws/alerts    (incident/anomaly push)          |
 +===========================================|============================+
                                             |
 +===========================================v============================+
@@ -66,7 +82,33 @@ GATI (Governance-ready AI Traffic Intelligence) is an edge-first, retrofit-ready
 - **Nagpur Simulation Harness (`simulation/`):** Multi-junction traffic and telemetry load generator.
 
 ### Data Flow
-`Camera (RTSP) -> Edge Vision Worker -> PCU Queue Estimator -> Local Signal Actuation Controller -> Edge Telemetry Client -> (WAN / 4G JSON) -> Central Ingestor -> Analytics & Coordinator -> Operator Dashboard`
+```
+Camera (RTSP)
+  └─> Edge Vision Worker (YOLOv8 + ByteTrack)
+        └─> PCU Queue Estimator & Approach Metrics
+              ├─> Local MaxPressure Signal Actuation Controller
+              └─> Edge Telemetry Client  ──[4G/WAN JSON ~5KB/s]──>
+                                                                   │
+                        ┌──────────────────────────────────────────┘
+                        ▼
+              Central API (POST /api/v1/telemetry/report)
+                ├─> JunctionStateStore.get_or_create(junction_id)
+                ├─> MaxPressureController.evaluate_decision()     [in-process]
+                ├─> AnalyticsEngine.process_telemetry_step()      [in-process]
+                │     ├─> CongestionForecaster (10-30 min ahead)
+                │     ├─> IncidentDetector (stalled vehicles)
+                │     └─> LiveRiskIndicator (SSM score 0-100)
+                ├─> JunctionRiskEngine.calculate_risk()           [in-process]
+                └─> WebSocketManager.broadcast_junction()         [push to dashboard]
+                                                                   │
+        ┌──────────────────────────────────────────────────────────┘
+        ▼
+  Operator Dashboard (React)
+    ├─ WS /api/v1/telemetry/ws          ← live phase/queue/risk updates
+    ├─ WS /api/v1/analytics/ws/alerts   ← incident/anomaly push
+    ├─ REST GET /forecast, /risk, /comparison
+    └─ REST POST /override (LOCK/RELEASE → audit log)
+```
 
 ### Scale Assumptions (Nagpur-Like Scale)
 - **Signalized Junction Count:** 50 – 150 junctions (baseline: 100 junctions).
@@ -346,8 +388,43 @@ GATI (Governance-ready AI Traffic Intelligence) is an edge-first, retrofit-ready
 - **Total Estimated City Rollout (100 Junctions):**
   - Capex: ~₹50L – ₹70L total for 100 junction edge units + installation.
   - Opex: ~₹40,000 – ₹50,000/month total across all 100 junctions for 4G connectivity and server maintenance.
+- **API Serving Load at 100 Junctions:**
+  - Telemetry ingestion rate: 100 junctions × 1 report/3s = ~33 HTTP POST/sec (well within single-core FastAPI/uvicorn throughput of ~2,000+ req/sec for I/O-bound handlers).
+  - Each telemetry POST runs MaxPressure + AnalyticsEngine in-process: ~0.5–2ms compute per junction per step; negligible on a mid-tier server.
+  - WebSocket connections: ~5-20 concurrent ICCC operator terminals × 3 streams = ~60 open WS connections; trivial for asyncio event loop.
+  - Memory footprint of JunctionStateStore at 100 junctions: ~50–100 MB (rolling 200-sample history × 100 junctions × ~5 KB/sample).
+  - **Scale ceiling:** The current single-process architecture handles ~50 junctions at 3s cadence comfortably. Beyond that, adding a Redis Stream as an ingestion buffer (zero API contract change) and a separate consumer process for the MaxPressure+Analytics pipeline extends to 500+ junctions.
 
-## 5. Status / What's Built vs. Planned
+## 5. Full API Endpoint Reference
+
+| Method | Path | Description |
+| :--- | :--- | :--- |
+| `GET` | `/` | Platform identity, configured/active junction count |
+| `GET` | `/health` or `/api/v1/health` | Health probe for load-balancer / k8s |
+| `POST` | `/api/v1/telemetry/report` | Ingest live telemetry from one edge unit |
+| `POST` | `/api/v1/telemetry/batch` | Ingest buffered batch from reconnecting edge |
+| `GET` | `/api/v1/telemetry/latest` | Latest snapshot all junctions |
+| `GET` | `/api/v1/telemetry/latest/{junction_id}` | Latest snapshot one junction |
+| `WS` | `/api/v1/telemetry/ws` | Global live stream (all junctions) |
+| `WS` | `/api/v1/telemetry/ws/{junction_id}` | Per-junction live stream |
+| `GET` | `/api/v1/junctions/` | List all configured junctions (from YAML scan) |
+| `GET` | `/api/v1/junctions/{junction_id}` | Full config + live state |
+| `GET` | `/api/v1/junctions/{junction_id}/state` | Current signal, approaches, risk |
+| `GET` | `/api/v1/junctions/{junction_id}/signal-timing` | Current vs. Max-Pressure timing comparison |
+| `POST` | `/api/v1/junctions/{junction_id}/override` | Issue LOCK or RELEASE command → audit log |
+| `GET` | `/api/v1/junctions/{junction_id}/override/status` | Active override + remaining time |
+| `GET` | `/api/v1/junctions/{junction_id}/override/audit` | Last N audit records |
+| `GET` | `/api/v1/analytics/city-summary` | City-wide aggregate health |
+| `GET` | `/api/v1/analytics/{junction_id}/forecast` | 10/15/30-min congestion forecast per approach |
+| `GET` | `/api/v1/analytics/{junction_id}/incidents` | Active stalled-vehicle / gridlock incidents |
+| `GET` | `/api/v1/analytics/{junction_id}/risk` | Live approach safety risk scores |
+| `GET` | `/api/v1/analytics/{junction_id}/comparison` | Fixed-time vs. Max-Pressure comparison |
+| `WS` | `/api/v1/analytics/ws/alerts` | Real-time HIGH/CRITICAL incident push |
+| `GET` | `/api/v1/corridors/` | List all arterial corridors |
+| `GET` | `/api/v1/corridors/{corridor_id}` | Corridor detail + green-wave offsets |
+| `POST` | `/api/v1/corridors/green-wave/plan` | Compute green-wave phase offsets |
+
+## 6. Status / What's Built vs. Planned
 - [x] Baseline architecture documents (`DECISIONS.md`, `FLOW.md`).
 - [x] Modular repository layout with clean separation of concerns.
 - [x] Zero-hardcoding configuration system (`config/default_config.yaml`, `config/junctions/*.yaml`, `config/settings.py`).
@@ -374,11 +451,20 @@ GATI (Governance-ready AI Traffic Intelligence) is an edge-first, retrofit-ready
   - [x] Live approach risk indicator computed strictly from kinematic surrogate safety measures: speed variance, hard braking ($a < -3.5\text{m/s}^2$), and near-miss proxies ($\text{TTC} < 1.5\text{s}$) (`central/analytics/live_risk_indicator.py`).
   - [x] Analytics pipeline CLI runner with structured JSONL/CSV logging (`scripts/run_analytics_pipeline.py`).
   - [!] *Note on historical crash database:* Multi-year police FIR accident black-spot spatial ranking is **DEFERRED / FUTURE WORK**; live prototype relies 100% on defensible live CCTV kinematics with zero synthetic accident data.
+- [x] **Central FastAPI Data-Serving API** (`central/api/`) — **completed this pass**:
+  - [x] `JunctionStateStore` — config-driven registry, lazy per-junction init from YAML, zero-code multi-junction extensibility (`central/api/state_store.py`).
+  - [x] Full ingestion pipeline: `POST /report` → MaxPressure + Analytics + Risk in-process → WebSocket broadcast (`central/api/routers/telemetry.py`).
+  - [x] Junction REST endpoints: list (YAML-driven), detail, live state, signal-timing comparison (`central/api/routers/junctions.py`).
+  - [x] Override REST endpoints: LOCK/RELEASE with 300s safety ceiling, JSONL audit trail (`central/api/routers/junctions.py`).
+  - [x] Analytics REST endpoints: city-summary, forecast, incidents, risk, comparison (`central/api/routers/analytics.py`).
+  - [x] WebSocket streams: global, per-junction, and alerts room (`central/api/websocket_manager.py`).
+  - [x] Corridor REST endpoints: config-driven (no hardcoded junction IDs) (`central/api/routers/corridor.py`).
+  - [x] Health endpoint for load-balancer probes (`/health`, `/api/v1/health`).
+  - [x] Startup prewarm of all configured junctions from YAML scan.
+  - [x] 25/25 API integration tests passing (`tests/test_api.py`).
+  - [!] *Auth:* Override endpoint is unauthenticated in demo build; JWT + RBAC flagged as required before production deployment.
+  - [!] *Persistence:* In-memory state store; Redis/SQLite persistence is future work.
 - [x] Edge telemetry client with offline buffer (`edge/telemetry/edge_client.py`).
-- [x] Central FastAPI backend with REST & WebSockets (`central/api/`).
 - [x] Corridor Green Wave Progression Coordinator (`central/coordinator/green_wave.py`).
 - [x] Nagpur Multi-Junction Traffic Simulator (`simulation/city_simulator.py`).
 - [x] React Vite Operator Dashboard (`frontend/`).
-
-
-

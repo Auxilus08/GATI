@@ -145,4 +145,61 @@ Log of every non-trivial engineering/product decision made on GATI.
 - **Impact:** Provides an authentic, real-time Surrogate Safety Measure (SSM) that detects sudden flow turbulence, aggressive overtaking, and near-collisions without faking data.
 - **Reversibility:** High. When verified police accident GIS records are integrated, they will feed an offline black-spot layer without altering live kinematic risk scoring.
 
+## [2026-08-17] Central API Framework: FastAPI over Flask/Django
 
+- **Decision:** Use **FastAPI** (ASGI, Starlette-based) as the central data-serving API framework.
+- **Context:** The API must serve both REST (for static data like configs, forecasts, audit logs) and WebSocket push (for sub-3s latency signal state updates to the operator dashboard). Django REST Framework does not natively support WebSocket without Channels overhead. Flask lacks native async/WebSocket. FastAPI provides native ASGI WebSocket support, Pydantic v2 schema validation, auto-generated OpenAPI docs, and sub-millisecond async request handling.
+- **Alternatives considered:**
+  - *Django + Django Channels:* Adds Redis-backed channel layer complexity; overkill for a single-server deployment.
+  - *Flask + Flask-SocketIO:* Eventlet/gevent threading model; doesn't compose cleanly with async analytics code.
+  - *gRPC:* High-performance but requires Protobuf client stubs in the dashboard frontend; too heavy for a demo-phase REST+WebSocket contract.
+- **Impact:** FastAPI serves both REST and WebSocket from the same ASGI process. OpenAPI docs available at `/docs` for dashboard integration without manual documentation.
+- **Reversibility:** High. The API interface is defined entirely by Pydantic schemas; swapping the framework layer doesn't change module contracts.
+
+## [2026-08-17] WebSocket vs. Polling for Live Signal State
+
+- **Decision:** Use **WebSocket push** for live junction state (signal phase, queue, risk) and incident alerts; use **REST polling** for forecast data, comparison reports, and audit logs.
+- **Rationale:**
+  - Signal phase recommendations change every 3–15 seconds. Polling at even 2-second intervals from 100 junctions would generate 100 × 30 = 3,000 HTTP requests/minute from the dashboard alone — unnecessary for a persistent browser connection.
+  - Forecasts update at most every 30 seconds and are naturally cacheable; REST with appropriate `Cache-Control` is the correct choice.
+  - Audit logs are append-only event records with no urgency; REST polling at user request is appropriate.
+  - Incident alerts need immediate push (a stalled vehicle at Sitabuldi must appear on the operator HUD within one telemetry cycle, not at the next poll interval).
+- **Architecture:** Three WebSocket streams:
+  1. `/api/v1/telemetry/ws` — global (all junctions, all updates).
+  2. `/api/v1/telemetry/ws/{junction_id}` — per-junction detail panel.
+  3. `/api/v1/analytics/ws/alerts` — high-priority incident and anomaly alerts from any junction.
+- **Impact:** WebSocket connections are long-lived and efficient; a single uvicorn process can comfortably handle 100+ concurrent operator connections.
+- **Reversibility:** High. Clients can fall back to REST polling `/api/v1/telemetry/latest` if WebSocket is not supported.
+
+## [2026-08-17] Multi-Junction Extensibility: Config-Driven JunctionStateStore
+
+- **Decision:** Implement **`JunctionStateStore`** as a `Dict[junction_id → JunctionRuntimeState]`, where each `JunctionRuntimeState` lazily instantiates its own `MaxPressureController`, `AnalyticsEngine`, and `OverrideManager` from per-junction YAML config.
+- **Concrete proof point for "scales to ~100 junctions":**
+  - Adding junction #51 = add `config/junctions/nagpur_j51_abc.yaml`. Zero code change.
+  - On startup, `junction_store.prewarm()` scans `config/junctions/*.yaml` and initializes all configured junctions automatically.
+  - For unknown junction IDs sent via telemetry (edge unit with no YAML yet), the store creates a minimal stub state and logs a warning — no crash, no silent data loss.
+  - All REST and WebSocket endpoints are parameterised by `junction_id` and delegate to the store; no junction IDs appear as string literals in router code.
+- **Alternatives considered:**
+  - *One controller instance shared across junctions:* Would require junction-ID-keyed sub-dictionaries inside every module; messy and error-prone.
+  - *Database-backed state:* Correct for production; deferred to future work as Redis/SQLite adds operational complexity for a demo deployment. An explicit startup-reload hook from last JSONL snapshot is a near-term addition.
+- **Impact:** Demonstrated by `TestMultiJunctionExtensibility` in `tests/test_api.py`: `NGP_J02_VARIETIES_SQ` is ingested and served correctly with no code change, just data.
+- **Reversibility:** High. The store interface is clean; adding a persistence layer behind `get_or_create()` is a localized change.
+
+## [2026-08-17] Ingestion Strategy: In-Process Call vs. File Polling vs. Message Queue
+
+- **Decision:** Use **in-process function calls** as the primary ingestion path (edge POSTs telemetry → router calls `AnalyticsEngine.process_telemetry_step()` directly).
+- **Rationale:**
+  - File-based JSONL polling introduces 1–3s latency and file locking complexity.
+  - A message queue (Redis Streams, Kafka) is the correct production choice for 100+ junctions at high frequency, but adds substantial operational overhead for a demo deployment.
+  - For a single-process uvicorn server, in-process async calls are zero-overhead, fully synchronous with the request lifecycle, and trivially testable.
+- **Migration path documented:** When volume exceeds single-process limits (~50 junctions at 3s cadence = ~17 reports/second, well within FastAPI's async throughput), the telemetry router's `report_telemetry()` handler can be replaced by an enqueue operation to a Redis Stream or Kafka topic, with a separate consumer process running the MaxPressure+Analytics pipeline. The API contract and schemas remain unchanged.
+- **Impact:** Zero infrastructure dependencies for the demo; uvicorn + Python process is the only service required.
+- **Reversibility:** High. Ingestion path is isolated to `central/api/routers/telemetry.py`; schema layer is independent.
+
+## [2026-08-17] No Authentication on Override Endpoint (Demo Decision)
+
+- **Decision:** The `/api/v1/junctions/{junction_id}/override` endpoint does **not** require authentication or role-based access control in the demo build.
+- **Rationale:** Adding JWT + OAuth2 password flow adds 3–5 additional files and a user store, which is orthogonal to the traffic intelligence demonstration. The absence of auth is explicitly flagged in code comments in `junctions.py` and here in DECISIONS.md.
+- **Future Work (mandatory before production):** Implement FastAPI's `OAuth2PasswordBearer` with roles: `ICCC_OPERATOR` (can LOCK/RELEASE), `SUPERVISOR` (can LOCK/RELEASE + view all audit), `READ_ONLY` (dashboard viewer). The JWT approach integrates cleanly with existing Nagpur ICCC SSO systems.
+- **Impact:** Demo overrides are unauthenticated but fully audited (JSONL log per junction). In practice, the physical ICCC terminal controls physical access.
+- **Reversibility:** High. A FastAPI security dependency injected at the router level covers all override endpoints.
