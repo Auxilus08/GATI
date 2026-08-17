@@ -18,6 +18,7 @@ import {
   Award,
 } from 'lucide-react';
 import { issueOverride, fetchOverrideStatus, fetchOverrideAudit, executeFieldQuickAction } from '../services/api';
+import DynamicSplitAndCorridorVisualizer from './DynamicSplitAndCorridorVisualizer';
 
 export default function CommandView({
   junction,
@@ -103,6 +104,50 @@ export default function CommandView({
     }
   };
 
+  // Handle 1-Click VIP Green Wave Progression
+  const handleTriggerVIPGreenWave = async () => {
+    setIsSubmitting(true);
+    try {
+      await issueOverride(junctionId, {
+        action: 'LOCK',
+        phase_id: 1,
+        duration_seconds: 90,
+        reason: 'VIP Convoy Green Wave Progression across Wardha Road Corridor',
+        operator_id: 'POLICE_COMMISSIONER_401',
+      });
+      setVipCorridorActive(true);
+      setActionMessage({ type: 'success', text: '5-Junction Wardha Road VIP Green Wave ENGAGED! Arterial phases synchronized.' });
+      setTimeout(() => setVipCorridorActive(false), 90000);
+      await loadOverrideState();
+      if (onRefresh) onRefresh();
+    } catch (e) {
+      setActionMessage({ type: 'error', text: 'Failed to engage VIP corridor' });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Handle Field Constable 1-Tap Queue Flush
+  const handleFieldConstableFlush = async () => {
+    setConstableActionLoading(true);
+    try {
+      await executeFieldQuickAction({
+        junction_id: junctionId,
+        action_type: 'FLUSH_HEAVY_QUEUE',
+        officer_badge_id: 'CONSTABLE_MH31_8821',
+        target_phase_id: 1,
+        duration_seconds: 45,
+      });
+      setActionMessage({ type: 'success', text: `Field Constable Mobile Action: 45s Green on Phase 1 (Badge: CONSTABLE_MH31_8821)` });
+      await loadOverrideState();
+      if (onRefresh) onRefresh();
+    } catch (e) {
+      setActionMessage({ type: 'error', text: 'Failed to execute field constable action' });
+    } finally {
+      setConstableActionLoading(false);
+    }
+  };
+
   // Extract Headline KPIs from comparisonData or defaults
   const kpiWaitTimeBefore = comparisonData?.fixed_time?.avg_wait_sec || 42.5;
   const kpiWaitTimeAfter = comparisonData?.max_pressure?.avg_wait_sec || 29.4;
@@ -122,6 +167,9 @@ export default function CommandView({
 
   return (
     <div className="panel-container">
+      {/* ─── Interactive Dynamic Asymmetric Split & Cascading Corridor Visualizer ─── */}
+      <DynamicSplitAndCorridorVisualizer />
+
       {/* ─── Headline Before/After Performance KPIs (In View Header as required) ─── */}
       <div className="command-kpi-banner">
         <div className="kpi-header-eyebrow">
