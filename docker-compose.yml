@@ -1,0 +1,58 @@
+version: '3.8'
+
+services:
+  # Central FastAPI backend server (ICCC Command Layer)
+  central-api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.central
+    container_name: gati-central-api
+    ports:
+      - "8000:8000"
+    environment:
+      - GATI_RUN_MODE=central
+      - PORT=8000
+      - HOST=0.0.0.0
+    restart: unless-stopped
+
+  # React Operator Dashboard (ICCC Console)
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.frontend
+    container_name: gati-frontend
+    ports:
+      - "3000:80"
+    depends_on:
+      - central-api
+    restart: unless-stopped
+
+  # Simulated Edge Unit: Sitabuldi Junction (NGP_J01_SITABULDI)
+  edge-sitabuldi:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.edge
+    container_name: gati-edge-sitabuldi
+    environment:
+      - GATI_RUN_MODE=edge
+      - GATI_JUNCTION_ID=NGP_J01_SITABULDI
+      - GATI_CENTRAL_API_URL=http://central-api:8000
+      - GATI_TELEMETRY_INTERVAL_SEC=3.0
+    depends_on:
+      - central-api
+    restart: unless-stopped
+
+  # Simulated Edge Unit: Varieties Square (NGP_J02_VARIETIES_SQ)
+  edge-varieties:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.edge
+    container_name: gati-edge-varieties
+    environment:
+      - GATI_RUN_MODE=edge
+      - GATI_JUNCTION_ID=NGP_J02_VARIETIES_SQ
+      - GATI_CENTRAL_API_URL=http://central-api:8000
+      - GATI_TELEMETRY_INTERVAL_SEC=3.0
+    depends_on:
+      - central-api
+    restart: unless-stopped

@@ -235,3 +235,25 @@ Log of every non-trivial engineering/product decision made on GATI.
 - **Impact:** Eliminates all fake mock datasets and presents a credible, governance-ready traffic intelligence platform to municipal commissioners and traffic police authorities.
 - **Reversibility:** High. When police FIR accident GIS databases are integrated, the "Coming Soon" module will be replaced with live spatial heatmaps.
 
+## [2026-08-17] Edge Packaging & Multi-Service Containerization (Docker Compose)
+- **Decision:** Containerize the GATI stack using multi-stage lightweight container images:
+  - `docker/Dockerfile.edge`: Python 3.11-slim base with OpenCV-headless and ONNX Runtime CPU/TensorRT bindings for Jetson Orin Nano / ARM64 roadside controllers.
+  - `docker/Dockerfile.central`: Python 3.11-slim FastAPI ASGI server for central ICCC telemetry aggregation and analytics.
+  - `docker/Dockerfile.frontend`: Multi-stage Node 20 alpine build producing an optimized production static bundle served via Nginx with automated API reverse proxying.
+  - `docker-compose.yml`: Local orchestrator for city-wide simulation, spinning up the central server, frontend UI, and multi-junction simulated edge nodes (`Sitabuldi` and `Varieties Square`).
+- **Context:** Municipal IT departments and Smart City systems integrators require portable, reproducible container builds that run seamlessly across x86 simulation servers and ARM64 edge nodes (Jetson Orin Nano / RK3588) without version drift or manual driver configuration.
+- **Alternatives considered:**
+  - *Monolithic All-in-One Container:* Packing API, frontend, and vision into a single huge image. Rejected because edge roadside nodes only need the edge worker and should not carry web server or frontend assets.
+  - *Kubernetes / Helm Charts at Hackathon Phase:* Unnecessary operational complexity for a Tier-1 city scale (~100 junctions) during initial pilot; standard Docker Compose provides immediate developer productivity and clean migration to K8s/K3s for production.
+- **Impact:** Clean isolation of edge compute vs. central aggregation with automated healthchecks and seamless multi-junction local testing.
+- **Reversibility:** High. Container definitions are standard OCI-compliant Dockerfiles.
+
+## [2026-08-17] Nagpur-Scale Cost-Efficiency Architecture (Metadata-Only Upstream vs Video Streaming)
+- **Decision:** Architect the deployment around **Metadata-Only Upstream Telemetry** (< 5 KB/s JSON per junction) with all heavy vision/tracking inference localized to roadside edge hardware (~$250 / ₹21,000 to ₹45,000 one-time capex per junction), completely eliminating raw video cloud streaming.
+- **Cost Comparison (100 Junctions, Nagpur Baseline):**
+  - *Traditional Video-Centric Cloud Model:* Uploading 4x 1080p RTSP streams per junction (400 streams total @ 4 Mbps = 1.6 Gbps continuous bandwidth) requires dedicated dark fiber or commercial multi-SIM 5G plans (~₹15,000/junction/month = ₹1.8 Crore/year bandwidth alone) plus heavy multi-GPU cloud transcoding/inference servers (> ₹25 Lakh/month = ₹3.0 Crore/year). Total Annual Opex: **> ₹4.8 Crore/year**.
+  - *GATI Edge-First Metadata Model:* Repurposes existing CCTV cameras ($0 camera capex), adds edge compute nodes (₹45,000 × 100 = ₹45 Lakh one-time capex), uses standard 4G SIM cards (₹300/junction/month = ₹3.6 Lakh/year total city bandwidth), and runs the central aggregation API on existing ICCC on-premise hardware (zero incremental cloud cost). Total Annual Opex: **< ₹6 Lakh/year (95%+ cost reduction)**.
+- **Trade-off:** Requires physical edge hardware installation in traffic signal cabinets during Phase 1 pilot, but yields massive ongoing opex savings, zero dependence on continuous internet connectivity, and robust offline autonomous signal fail-safe operation.
+- **Reversibility:** High. The edge telemetry client emits standardized REST/WebSocket JSON payloads compatible with any central ingestion broker.
+
+

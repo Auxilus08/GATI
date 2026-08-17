@@ -1,0 +1,34 @@
+# Dockerfile for GATI Edge Node (Jetson Orin Nano / Linux Edge Box)
+# Runs the Edge Detection, Tracking, Max-Pressure Controller, and Telemetry Client
+
+FROM python:3.11-slim-bookworm AS base
+
+# Install system dependencies (OpenCV headless runtime dependencies)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 \
+    libglib2.0-0 \
+    libgomp1 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# Copy dependency requirements
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application configuration and edge source code
+COPY config/ config/
+COPY edge/ edge/
+COPY simulation/ simulation/
+COPY scripts/ scripts/
+
+# Default environment variables for Edge Unit
+ENV GATI_RUN_MODE=edge \
+    GATI_JUNCTION_ID=NGP_J01_SITABULDI \
+    GATI_CENTRAL_API_URL=http://central-api:8000 \
+    GATI_TELEMETRY_INTERVAL_SEC=3.0 \
+    PYTHONUNBUFFERED=1
+
+# Entry point for Edge Daemon
+CMD ["python", "-m", "edge.telemetry.edge_client"]

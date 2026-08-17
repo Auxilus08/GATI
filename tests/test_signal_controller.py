@@ -117,6 +117,47 @@ class TestMaxPressureController(unittest.TestCase):
         self.assertTrue(decision.is_switch)
         self.assertEqual(decision.decision_reason, "MAX_GREEN_EXCEEDED")
 
+    def test_low_detection_confidence_hold(self):
+        # Degraded vision (fog / heavy rain / occlusion) with low confidence score (< 0.40)
+        # Should hold current state safely rather than make chaotic switching decisions
+        metrics = {
+            "APP_N": ApproachQueueMetrics(approach_id="APP_N", total_pcu=5.0, confidence_score=0.25),
+            "APP_S": ApproachQueueMetrics(approach_id="APP_S", total_pcu=5.0, confidence_score=0.30),
+            "APP_E": ApproachQueueMetrics(approach_id="APP_E", total_pcu=40.0, confidence_score=0.20),
+            "APP_W": ApproachQueueMetrics(approach_id="APP_W", total_pcu=40.0, confidence_score=0.35),
+        }
+
+        decision = self.controller.evaluate_decision(
+            approach_metrics=metrics,
+            current_phase_id=1,
+            elapsed_green_sec=20.0,
+        )
+
+        self.assertEqual(decision.recommended_phase_id, 1)
+        self.assertFalse(decision.is_switch)
+        self.assertIn("LOW_CONFIDENCE_HOLD", decision.decision_reason)
+
+    def test_all_approaches_gridlock_fallback(self):
+        # When all approaches are totally saturated (> 25 PCU), MaxPressure falls back to fixed time
+        metrics = {
+            "APP_N": ApproachQueueMetrics(approach_id="APP_N", total_pcu=30.0),
+            "APP_S": ApproachQueueMetrics(approach_id="APP_S", total_pcu=32.0),
+            "APP_E": ApproachQueueMetrics(approach_id="APP_E", total_pcu=35.0),
+            "APP_W": ApproachQueueMetrics(approach_id="APP_W", total_pcu=28.0),
+        }
+
+        # If elapsed time reached 30s fixed interval, smoothly advance to next cycle phase
+        decision = self.controller.evaluate_decision(
+            approach_metrics=metrics,
+            current_phase_id=1,
+            elapsed_green_sec=32.0,
+        )
+
+        self.assertEqual(decision.recommended_phase_id, 2)
+        self.assertTrue(decision.is_switch)
+        self.assertEqual(decision.decision_reason, "GRIDLOCK_FALLBACK_FIXED_TIME")
+
+
 
 class TestOperatorOverride(unittest.TestCase):
     """Test human operator override locks, releases, and audit logs."""

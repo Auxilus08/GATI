@@ -31,6 +31,8 @@ class ApproachQueueMetrics:
     average_speed_kmh: float = 0.0
     emergency_vehicle_detected: bool = False
     emergency_vehicle_count: int = 0
+    confidence_score: float = 1.0
+
 
 
 from edge.vision.pcu_engine import PCUEngine

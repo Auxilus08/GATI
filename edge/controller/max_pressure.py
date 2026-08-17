@@ -119,7 +119,51 @@ class MaxPressureController:
                 operator_id=op_id,
             )
 
-        # 2. Check Emergency Vehicle Detection (Autonomous Priority Override)
+        # 2. Failure Mode: Low Detection Confidence (Adverse Weather / Fog / Dust / Occlusion)
+        # If mean confidence is degraded, hold last safe state or switch to fixed cycle safely
+        approach_confidences = [
+            getattr(m, "confidence_score", 1.0)
+            for m in approach_metrics.values()
+            if hasattr(m, "confidence_score")
+        ]
+        if approach_confidences and (sum(approach_confidences) / len(approach_confidences)) < 0.40:
+            logger.warning("Low detection confidence detected (< 0.40). Holding current signal state for safety.")
+            return ControllerDecision(
+                recommended_phase_id=current_phase_id,
+                current_phase_id=current_phase_id,
+                decision_reason="LOW_CONFIDENCE_HOLD (Degraded Vision)",
+                pressures=pressures,
+                elapsed_green_sec=elapsed_green_sec,
+                is_switch=False,
+            )
+
+        # 3. Failure Mode: All-Approaches Gridlock (Total Saturation Fallback to Fixed-Time Plan)
+        # When all approaches are heavily queued (> 25 PCU), Max-Pressure differentials become unstable.
+        # Controller safely degrades to round-robin fixed-time allocation.
+        all_saturated = (
+            len(approach_metrics) >= len(self.config.approaches)
+            and all(m.total_pcu >= 25.0 for m in approach_metrics.values())
+        )
+        if all_saturated and elapsed_green_sec >= self.guardrails.min_green_seconds:
+            # Advance to next cyclical phase deterministically
+            phase_ids = [p.phase_id for p in self.config.phases]
+            if current_phase_id in phase_ids:
+                curr_idx = phase_ids.index(current_phase_id)
+                next_phase = phase_ids[(curr_idx + 1) % len(phase_ids)]
+            else:
+                next_phase = phase_ids[0]
+
+            if elapsed_green_sec >= 30.0:  # 30s fixed green per approach during gridlock
+                return ControllerDecision(
+                    recommended_phase_id=next_phase,
+                    current_phase_id=current_phase_id,
+                    decision_reason="GRIDLOCK_FALLBACK_FIXED_TIME",
+                    pressures=pressures,
+                    elapsed_green_sec=elapsed_green_sec,
+                    is_switch=True,
+                )
+
+        # 4. Check Emergency Vehicle Detection (Autonomous Priority Override)
         for phase in self.config.phases:
             for app_id in phase.active_approaches:
                 metric = approach_metrics.get(app_id)
@@ -139,7 +183,7 @@ class MaxPressureController:
         min_green = self.guardrails.min_green_seconds
         max_green = self.guardrails.max_green_seconds
 
-        # 3. Minimum Green Guardrail: prevent rapid phase fluttering
+        # 5. Minimum Green Guardrail: prevent rapid phase fluttering
         if elapsed_green_sec < min_green:
             return ControllerDecision(
                 recommended_phase_id=current_phase_id,
@@ -150,7 +194,7 @@ class MaxPressureController:
                 is_switch=False,
             )
 
-        # 4. Maximum Green Guardrail: prevent cross-street starvation
+        # 6. Maximum Green Guardrail: prevent cross-street starvation
         if elapsed_green_sec >= max_green:
             other_phases = {k: v for k, v in pressures.items() if k != current_phase_id}
             best_other_phase = max(other_phases, key=other_phases.get) if other_phases else current_phase_id
