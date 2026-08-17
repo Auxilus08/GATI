@@ -195,3 +195,31 @@ export function createAlertsWebSocket(onAlert) {
     },
   };
 }
+
+/* ─── Governance, Field Mobile & VIP Corridors ─────────────────────── */
+
+export async function executeFieldQuickAction({
+  junction_id,
+  action_type = 'FLUSH_HEAVY_QUEUE',
+  officer_badge_id = 'CONSTABLE_MH31_8821',
+  target_phase_id = 1,
+  duration_seconds = 45,
+}) {
+  const res = await fetch(`${API_BASE_URL}/field/quick-action`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      junction_id,
+      action_type,
+      officer_badge_id,
+      target_phase_id: Number(target_phase_id),
+      duration_seconds: Number(duration_seconds),
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.detail || 'Failed to execute field action');
+  }
+  return res.json();
+}
+

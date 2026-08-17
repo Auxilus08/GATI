@@ -13,8 +13,11 @@ import {
   History,
   Send,
   Zap,
+  Radio,
+  Smartphone,
+  Award,
 } from 'lucide-react';
-import { issueOverride, fetchOverrideStatus, fetchOverrideAudit } from '../services/api';
+import { issueOverride, fetchOverrideStatus, fetchOverrideAudit, executeFieldQuickAction } from '../services/api';
 
 export default function CommandView({
   junction,
@@ -34,6 +37,8 @@ export default function CommandView({
   const [overrideStatus, setOverrideStatus] = useState(null);
   const [auditRecords, setAuditRecords] = useState([]);
   const [actionMessage, setActionMessage] = useState(null);
+  const [vipCorridorActive, setVipCorridorActive] = useState(false);
+  const [constableActionLoading, setConstableActionLoading] = useState(false);
 
   // Load live override status & audit history
   const loadOverrideState = async () => {
@@ -180,6 +185,83 @@ export default function CommandView({
               Clean air initiative aligned
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ─── Governance & Special Operations Action Bar (VIP Corridor & Field Mobile) ─── */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '20px' }}>
+        {/* VIP Motorcade 1-Click Progression Card */}
+        <div className="card" style={{ padding: '16px', borderLeft: '4px solid #38bdf8' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: '#f8fafc' }}>
+              <Radio size={16} className="text-blue" />
+              <span>Wardha Road VIP Green Wave Corridor</span>
+            </div>
+            <span className="badge-pill" style={{ backgroundColor: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}>
+              5 Junctions Synced
+            </span>
+          </div>
+          <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '12px' }}>
+            Synchronizes arterial green splits across <em>Sitabuldi ➔ Varieties ➔ Rahate ➔ Ajni ➔ Chhatrapati</em> for non-stop VIP motorcades.
+          </p>
+          <button
+            onClick={handleTriggerVIPGreenWave}
+            disabled={isSubmitting || overrideStatus?.override_active}
+            style={{
+              width: '100%',
+              backgroundColor: vipCorridorActive ? '#059669' : '#0284c7',
+              color: '#ffffff',
+              border: 'none',
+              padding: '8px 14px',
+              borderRadius: '6px',
+              fontWeight: 600,
+              fontSize: '13px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+            }}
+          >
+            <Radio size={14} /> {vipCorridorActive ? 'VIP CORRIDOR IN PROGRESS (90s)' : 'TRIGGER 5-JUNCTION VIP GREEN WAVE'}
+          </button>
+        </div>
+
+        {/* Field Constable Mobile Quick-Action Simulator */}
+        <div className="card" style={{ padding: '16px', borderLeft: '4px solid #34d399' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 600, color: '#f8fafc' }}>
+              <Smartphone size={16} className="text-green" />
+              <span>Field Constable Mobile Action (Cop on Ground)</span>
+            </div>
+            <span className="badge-pill" style={{ backgroundColor: 'rgba(52, 211, 153, 0.15)', color: '#34d399' }}>
+              Badge: MH31-8821
+            </span>
+          </div>
+          <p style={{ fontSize: '12px', color: '#94a3b8', marginBottom: '12px' }}>
+            Simulates on-ground traffic constable 1-tap mobile queue flush without opening or touching physical high-voltage cabinets.
+          </p>
+          <button
+            onClick={handleFieldConstableFlush}
+            disabled={constableActionLoading || overrideStatus?.override_active}
+            style={{
+              width: '100%',
+              backgroundColor: '#059669',
+              color: '#ffffff',
+              border: 'none',
+              padding: '8px 14px',
+              borderRadius: '6px',
+              fontWeight: 600,
+              fontSize: '13px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+            }}
+          >
+            <Smartphone size={14} /> 1-TAP 45s ARTERIAL QUEUE FLUSH
+          </button>
         </div>
       </div>
 

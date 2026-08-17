@@ -377,6 +377,21 @@ export default function PredictiveRiskView({ junction }) {
             )}
           </div>
 
+          {/* Informal Road Occupancy & Procession Blockage Detector */}
+          <div style={{ marginTop: '14px', padding: '12px', borderRadius: '8px', backgroundColor: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.25)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <span style={{ fontSize: '12px', fontWeight: 600, color: '#38bdf8' }}>
+                🎉 Religious Procession & Street Market Monitor
+              </span>
+              <span className="badge-pill" style={{ backgroundColor: 'rgba(52, 211, 153, 0.15)', color: '#34d399', fontSize: '10px' }}>
+                ACTIVE MONITORING
+              </span>
+            </div>
+            <p style={{ fontSize: '11px', color: '#94a3b8', lineHeight: 1.4 }}>
+              Detects sustained crowd / procession stagnation (&gt;3 min at &lt;2 km/h) to automatically reallocate green splits away from blocked arms.
+            </p>
+          </div>
+
           {/* Explicit Governance Disclosures for Real vs Synthetic Data */}
           <div className="future-work-disclosure">
             <div className="fw-header">

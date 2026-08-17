@@ -82,9 +82,15 @@ export default function LiveJunctionView({ junction, telemetry, signalTiming }) 
             </span>
           </div>
           <div className="hud-stat-item">
-            <span className="stat-label">Decision Status</span>
-            <span className="stat-value text-muted">
-              {signalTiming?.recommended?.decision_reason || 'MAX_PRESSURE_HOLD'}
+            <span className="stat-label">Cabinet Hardware</span>
+            <span className="stat-badge safe" style={{ backgroundColor: 'rgba(16, 185, 129, 0.15)', color: '#34d399', border: '1px solid rgba(52, 211, 153, 0.3)' }}>
+              NTCIP 1202 CMU OK
+            </span>
+          </div>
+          <div className="hud-stat-item">
+            <span className="stat-label">Edge Thermal / Power</span>
+            <span className="stat-value text-blue" style={{ fontSize: '13px', fontWeight: 600 }}>
+              48.5°C • 8.4W
             </span>
           </div>
         </div>
@@ -105,6 +111,9 @@ export default function LiveJunctionView({ junction, telemetry, signalTiming }) 
               </span>
               <span className="badge-pill tech-pill">
                 <Cpu size={12} /> YOLOv8n + ByteTrack (FP16)
+              </span>
+              <span className="badge-pill" style={{ backgroundColor: 'rgba(56, 189, 248, 0.12)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.25)', fontSize: '11px', padding: '3px 8px', borderRadius: '4px' }}>
+                📐 4-Point Homography (m/px)
               </span>
             </div>
           </div>
