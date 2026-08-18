@@ -1,0 +1,32 @@
+# Nagpur city-wide operating catalogue. Coordinates are junction centroids for
+# planning/simulation; field commissioning must replace them with surveyed values.
+standard_approaches: &standard_approaches
+  - { id: "APP_NORTH", name: "North approach", direction: "Northbound", camera_source: "rtsp://commissioning-required/north", lanes: 2, saturation_flow_pcu_hr: 1500 }
+  - { id: "APP_SOUTH", name: "South approach", direction: "Southbound", camera_source: "rtsp://commissioning-required/south", lanes: 2, saturation_flow_pcu_hr: 1500 }
+  - { id: "APP_EAST", name: "East approach", direction: "Eastbound", camera_source: "rtsp://commissioning-required/east", lanes: 2, saturation_flow_pcu_hr: 1500 }
+  - { id: "APP_WEST", name: "West approach", direction: "Westbound", camera_source: "rtsp://commissioning-required/west", lanes: 2, saturation_flow_pcu_hr: 1500 }
+standard_phases: &standard_phases
+  - { phase_id: 1, name: "North–south movement", active_approaches: ["APP_NORTH", "APP_SOUTH"], conflicting_phases: [2] }
+  - { phase_id: 2, name: "East–west movement", active_approaches: ["APP_EAST", "APP_WEST"], conflicting_phases: [1] }
+
+junctions:
+  - { junction_id: "NGP_J06_RBI_SQ", name: "RBI Square", corridor_id: "CORR_CENTRAL_NAGPUR", coordinates: { latitude: 21.1437, longitude: 79.0737 }, approaches: *standard_approaches, phases: *standard_phases }
+  - { junction_id: "NGP_J07_DHARAMPETH", name: "Dharampeth", corridor_id: "CORR_WEST_NAGPUR", coordinates: { latitude: 21.1370, longitude: 79.0591 }, approaches: *standard_approaches, phases: *standard_phases }
+  - { junction_id: "NGP_J08_SHANKAR_NAGAR", name: "Shankar Nagar Square", corridor_id: "CORR_WEST_NAGPUR", coordinates: { latitude: 21.1297, longitude: 79.0578 }, approaches: *standard_approaches, phases: *standard_phases }
+  - { junction_id: "NGP_J09_LAW_COLLEGE", name: "Law College Square", corridor_id: "CORR_WEST_NAGPUR", coordinates: { latitude: 21.1467, longitude: 79.0615 }, approaches: *standard_approaches, phases: *standard_phases }
+  - { junction_id: "NGP_J10_SADAR", name: "Sadar Junction", corridor_id: "CORR_NORTH_NAGPUR", coordinates: { latitude: 21.1584, longitude: 79.0810 }, approaches: *standard_approaches, phases: *standard_phases }
+  - { junction_id: "NGP_J11_KASTURCHAND", name: "Kasturchand Park", corridor_id: "CORR_CENTRAL_NAGPUR", coordinates: { latitude: 21.1488, longitude: 79.0831 }, approaches: *standard_approaches, phases: *standard_phases }
+  - { junction_id: "NGP_J12_MAYO", name: "Mayo Hospital Square", corridor_id: "CORR_EAST_NAGPUR", coordinates: { latitude: 21.1452, longitude: 79.1021 }, approaches: *standard_approaches, phases: *standard_phases }
+  - { junction_id: "NGP_J13_ITWARI", name: "Itwari Junction", corridor_id: "CORR_EAST_NAGPUR", coordinates: { latitude: 21.1537, longitude: 79.1120 }, approaches: *standard_approaches, phases: *standard_phases }
+  - { junction_id: "NGP_J14_KALAMNA", name: "Kalamna Market Square", corridor_id: "CORR_EAST_NAGPUR", coordinates: { latitude: 21.1715, longitude: 79.1204 }, approaches: *standard_approaches, phases: *standard_phases }
+  - { junction_id: "NGP_J15_NANDANVAN", name: "Nandanvan Square", corridor_id: "CORR_EAST_NAGPUR", coordinates: { latitude: 21.1253, longitude: 79.1260 }, approaches: *standard_approaches, phases: *standard_phases }
+  - { junction_id: "NGP_J16_JARIPATKA", name: "Jaripatka Square", corridor_id: "CORR_NORTH_NAGPUR", coordinates: { latitude: 21.1754, longitude: 79.1056 }, approaches: *standard_approaches, phases: *standard_phases }
+  - { junction_id: "NGP_J17_MANKAPUR", name: "Mankapur Square", corridor_id: "CORR_NORTHWEST_NAGPUR", coordinates: { latitude: 21.1703, longitude: 79.0792 }, approaches: *standard_approaches, phases: *standard_phases }
+  - { junction_id: "NGP_J18_GITTIKHADAN", name: "Gittikhadan Square", corridor_id: "CORR_NORTHWEST_NAGPUR", coordinates: { latitude: 21.1570, longitude: 79.0477 }, approaches: *standard_approaches, phases: *standard_phases }
+  - { junction_id: "NGP_J19_WADI", name: "Wadi Junction", corridor_id: "CORR_WEST_NAGPUR", coordinates: { latitude: 21.1528, longitude: 79.0015 }, approaches: *standard_approaches, phases: *standard_phases }
+  - { junction_id: "NGP_J20_HINGNA_TPOINT", name: "Hingna T Point", corridor_id: "CORR_SOUTHWEST_NAGPUR", coordinates: { latitude: 21.1135, longitude: 79.0185 }, approaches: *standard_approaches, phases: *standard_phases }
+  - { junction_id: "NGP_J21_MANISH_NAGAR", name: "Manish Nagar Square", corridor_id: "CORR_SOUTH_NAGPUR", coordinates: { latitude: 21.0978, longitude: 79.0518 }, approaches: *standard_approaches, phases: *standard_phases }
+  - { junction_id: "NGP_J22_AIRPORT", name: "Dr. Babasaheb Ambedkar Airport Junction", corridor_id: "CORR_AIRPORT", coordinates: { latitude: 21.0925, longitude: 79.0471 }, approaches: *standard_approaches, phases: *standard_phases }
+  - { junction_id: "NGP_J23_BESA", name: "Besa Square", corridor_id: "CORR_SOUTHEAST_NAGPUR", coordinates: { latitude: 21.0839, longitude: 79.0857 }, approaches: *standard_approaches, phases: *standard_phases }
+  - { junction_id: "NGP_J24_UMRED_RD", name: "Umred Road Square", corridor_id: "CORR_SOUTHEAST_NAGPUR", coordinates: { latitude: 21.1044, longitude: 79.1323 }, approaches: *standard_approaches, phases: *standard_phases }
+  - { junction_id: "NGP_J25_KORADI_RD", name: "Koradi Road Junction", corridor_id: "CORR_NORTH_NAGPUR", coordinates: { latitude: 21.1904, longitude: 79.0942 }, approaches: *standard_approaches, phases: *standard_phases }

@@ -32,16 +32,20 @@ SERVE_FRONTEND = os.getenv("VERCEL") == "1"
 async def lifespan(app: FastAPI):
     """Pre-warm JunctionStateStore from all YAML configs on startup."""
     junction_store.prewarm()
+    dummy_feed_enabled = await telemetry.start_dummy_telemetry_feed()
     configured = load_all_junction_configs()
     print(
         f"\n[GATI API] Started. "
         f"Pre-warmed {len(junction_store.all_junction_ids())} junction(s) "
         f"({len(configured)} configured). "
-        f"City: {settings.system.city_name}\n"
+        f"City: {settings.system.city_name}. "
+        f"Dummy feed: {'enabled' if dummy_feed_enabled else 'disabled'}\n"
     )
-    yield
-    # Shutdown: nothing to flush (in-memory store)
-    print("[GATI API] Shutting down.")
+    try:
+        yield
+    finally:
+        await telemetry.stop_dummy_telemetry_feed()
+        print("[GATI API] Shutting down.")
 
 
 # ─────────────────────────────────────────────────────────────

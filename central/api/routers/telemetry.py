@@ -10,6 +10,8 @@ WebSocket subscribers.
 Deliberately thin: all business logic lives in the modules above.
 """
 
+import asyncio
+import contextlib
 import logging
 import os
 import time
@@ -33,6 +35,8 @@ logger = logging.getLogger("central.api.telemetry")
 router = APIRouter(prefix="/telemetry", tags=["Telemetry"])
 ws_manager = WebSocketManager()
 _vercel_demo_seeded = False
+_dummy_feed_task: asyncio.Task | None = None
+_dummy_feed_tick = 0
 
 
 # ─────────────────────────────────────────────────────────────
@@ -95,44 +99,91 @@ async def _seed_vercel_demo_telemetry_if_needed():
         _vercel_demo_seeded = True
         return
 
-    now = time.time()
-    for idx, jid in enumerate(junction_store.all_junction_ids()):
-        jstate = junction_store.get(jid)
-        if not jstate:
-            continue
-
-        approaches = {}
-        for app_idx, approach in enumerate(jstate.config.approaches):
-            total_pcu = 12.0 + (idx * 3.5) + (app_idx * 4.2)
-            approaches[approach.id] = ApproachTelemetrySchema(
-                total_pcu=round(total_pcu, 1),
-                vehicle_counts={
-                    "two_wheeler": int(total_pcu * 0.8),
-                    "auto_rickshaw": int(total_pcu * 0.25),
-                    "car": int(total_pcu * 0.45),
-                    "bus": 1 if total_pcu > 20 else 0,
-                },
-                queue_length_m=round(total_pcu * 5.8, 1),
-                avg_speed_kmh=round(max(9.0, 42.0 - total_pcu * 0.55), 1),
-                emergency=False,
-            )
-
-        phases = jstate.config.phases or []
-        active_phase_id = phases[idx % len(phases)].phase_id if phases else 1
-        await report_telemetry(
-            JunctionTelemetryReport(
-                junction_id=jid,
-                timestamp=now + idx * 0.01,
-                active_phase_id=active_phase_id,
-                signal_state="GREEN",
-                pressures={active_phase_id: sum(a.total_pcu for a in approaches.values())},
-                approaches=approaches,
-                emergency_active=False,
-                elapsed_green_sec=12.0 + idx,
-            )
-        )
+    await seed_dummy_telemetry(samples=5)
 
     _vercel_demo_seeded = True
+
+
+async def seed_dummy_telemetry(samples: int = 1) -> None:
+    """Populate every configured junction with deterministic demo telemetry.
+
+    The feed intentionally enters through ``report_telemetry`` so every
+    downstream contract (latest state, signal timing, forecasts, risk and
+    comparison history) exercises the exact same path as a real edge unit.
+    """
+    global _dummy_feed_tick
+    if not junction_store.all_junction_ids():
+        junction_store.prewarm()
+
+    interval = junction_store._settings.system.telemetry_interval_sec
+    start_time = time.time() - max(0, samples - 1) * interval
+    for sample in range(samples):
+        tick = _dummy_feed_tick
+        timestamp = start_time + sample * interval
+        for junction_index, junction_id in enumerate(junction_store.all_junction_ids()):
+            jstate = junction_store.get(junction_id)
+            if not jstate:
+                continue
+            approaches = {}
+            for approach_index, approach in enumerate(jstate.config.approaches):
+                wave = (junction_index * 7 + approach_index * 5 + tick * 3) % 29
+                total_pcu = 11.0 + wave
+                approaches[approach.id] = ApproachTelemetrySchema(
+                    total_pcu=round(total_pcu, 1),
+                    vehicle_counts={
+                        "two_wheeler": int(total_pcu * 0.78),
+                        "auto_rickshaw": int(total_pcu * 0.22),
+                        "car": int(total_pcu * 0.46),
+                        "bus": 1 if total_pcu >= 28 else 0,
+                        "truck": 1 if total_pcu >= 34 else 0,
+                    },
+                    queue_length_m=round(total_pcu * 5.5, 1),
+                    avg_speed_kmh=round(max(10.0, 43.0 - total_pcu * 0.62), 1),
+                    emergency=False,
+                )
+            phases = jstate.config.phases or []
+            active_phase = phases[(tick + junction_index) % len(phases)].phase_id if phases else 1
+            await report_telemetry(JunctionTelemetryReport(
+                junction_id=junction_id,
+                timestamp=timestamp,
+                active_phase_id=active_phase,
+                signal_state="GREEN",
+                pressures={active_phase: round(sum(item.total_pcu for item in approaches.values()), 1)},
+                approaches=approaches,
+                emergency_active=False,
+                elapsed_green_sec=12.0 + (tick % 28),
+            ))
+        _dummy_feed_tick += 1
+
+
+async def _run_dummy_telemetry_feed() -> None:
+    """Continuously refresh the local demo feed at the configured cadence."""
+    interval = junction_store._settings.system.telemetry_interval_sec
+    while True:
+        await asyncio.sleep(interval)
+        await seed_dummy_telemetry()
+
+
+async def start_dummy_telemetry_feed() -> bool:
+    """Seed and stream local demo data unless explicitly disabled by env var."""
+    global _dummy_feed_task
+    enabled = os.getenv("GATI_ENABLE_DUMMY_FEED", "1").lower() not in {"0", "false", "off"}
+    if not enabled or os.getenv("VERCEL") == "1":
+        return False
+    await seed_dummy_telemetry(samples=5)
+    _dummy_feed_task = asyncio.create_task(_run_dummy_telemetry_feed(), name="gati-dummy-telemetry")
+    logger.info("[Telemetry] Local dummy feed enabled for %d junctions", len(junction_store.all_junction_ids()))
+    return True
+
+
+async def stop_dummy_telemetry_feed() -> None:
+    """Cancel the local background feed cleanly during API shutdown."""
+    global _dummy_feed_task
+    if _dummy_feed_task:
+        _dummy_feed_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await _dummy_feed_task
+        _dummy_feed_task = None
 
 
 # ─────────────────────────────────────────────────────────────

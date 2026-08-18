@@ -136,15 +136,19 @@ def load_junction_config(junction_id_or_file: str) -> JunctionConfig:
 
 
 def load_all_junction_configs() -> Dict[str, JunctionConfig]:
-    """Scan and load all junction YAML definitions in config/junctions."""
+    """Scan individual and catalogued junction YAML definitions in config/junctions."""
     junctions: Dict[str, JunctionConfig] = {}
     if JUNCTIONS_DIR.exists():
         for yaml_file in JUNCTIONS_DIR.glob("*.yaml"):
             try:
                 with open(yaml_file, "r", encoding="utf-8") as f:
                     data = yaml.safe_load(f)
-                jc = JunctionConfig(**data)
-                junctions[jc.junction_id] = jc
+                # A file may define one junction or a city catalogue under ``junctions``.
+                # This keeps operational geometry data portable without duplicating boilerplate.
+                entries = data.get("junctions", []) if isinstance(data, dict) and "junctions" in data else [data]
+                for entry in entries:
+                    jc = JunctionConfig(**entry)
+                    junctions[jc.junction_id] = jc
             except Exception as e:
                 print(f"[WARN] Failed to load junction config {yaml_file}: {e}")
     return junctions

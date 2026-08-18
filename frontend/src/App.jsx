@@ -74,6 +74,9 @@ export default function App() {
   const [signalTiming, setSignalTiming] = useState(DEFAULT_TIMING);
   const [comparisonData, setComparisonData] = useState(DEFAULT_COMPARISON);
   const [isConnected, setIsConnected] = useState(false);
+  const handleJunctionSelect = useCallback((junctionId) => {
+    setSelectedJunctionId(junctionId);
+  }, []);
 
   // 1. Load available junctions on mount
   useEffect(() => {
@@ -168,26 +171,18 @@ export default function App() {
         setActiveTab={setActiveTab}
         junctions={junctions}
         selectedJunctionId={selectedJunctionId}
-        onSelectJunction={(jid) => setSelectedJunctionId(jid)}
+        onSelectJunction={handleJunctionSelect}
         isConnected={isConnected}
       />
 
       {/* Main Work Area with City Traffic Map and Panels */}
       <main className="main-content">
         {/* Top 2-Column Row: Real City Traffic Map (Left) + Edge Incident & Authority Dispatch Console (Right) */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '1.15fr 0.85fr',
-            gap: '16px',
-            marginBottom: '18px',
-            alignItems: 'stretch',
-          }}
-        >
+        <div className="dashboard-overview">
           <CityTrafficMap
             junctions={junctions}
             selectedJunctionId={selectedJunctionId}
-            onSelectJunction={(jid) => setSelectedJunctionId(jid)}
+            onSelectJunction={handleJunctionSelect}
           />
 
           <SafetyAlertToastAndPanel

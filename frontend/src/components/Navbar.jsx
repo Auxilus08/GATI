@@ -36,24 +36,30 @@ export default function Navbar({
       {/* 3-Panel View Switcher Tabs in Simple Human-Friendly Words */}
       <nav className="nav-tabs">
         <button
+          type="button"
           className={`nav-tab-btn ${activeTab === 'live' ? 'active' : ''}`}
           onClick={() => setActiveTab('live')}
+          aria-current={activeTab === 'live' ? 'page' : undefined}
         >
           <Activity size={16} />
           <span>1. Live Camera & Signal</span>
         </button>
 
         <button
+          type="button"
           className={`nav-tab-btn ${activeTab === 'command' ? 'active' : ''}`}
           onClick={() => setActiveTab('command')}
+          aria-current={activeTab === 'command' ? 'page' : undefined}
         >
           <Sliders size={16} />
           <span>2. Smart Signal Controls</span>
         </button>
 
         <button
+          type="button"
           className={`nav-tab-btn ${activeTab === 'predictive' ? 'active' : ''}`}
           onClick={() => setActiveTab('predictive')}
+          aria-current={activeTab === 'predictive' ? 'page' : undefined}
         >
           <TrendingUp size={16} />
           <span>3. Predictions & Safety Risk</span>
